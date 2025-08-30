@@ -28,8 +28,14 @@ if [ ! -d "$BUILD_DIR" ]; then
     cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 fi
 
+if command -v nproc >/dev/null 2>&1; then
+  JOBS=$(nproc)
+else
+  JOBS=$(sysctl -n hw.ncpu)
+fi
+
 echo "🔨 Building project..."
-cmake --build "$BUILD_DIR" -- -j$(nproc)
+cmake --build "$BUILD_DIR" -- -j$JOBS
 
 echo "✅ Build finished."
 

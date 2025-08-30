@@ -1,1 +1,29 @@
-build/
+# --- CMake build ---
+/build/
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/Makefile
+
+# --- IDE / Editor ---
+.vscode/
+/.cache/
+/.idea/
+/*.code-workspace
+
+# --- OS junk ---
+.DS_Store
+*~
+Thumbs.db
+
+# --- Binaries ---
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+
+# --- Archives ---
+*.zip
