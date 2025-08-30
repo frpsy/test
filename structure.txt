@@ -1,0 +1,158 @@
+.
+├── CMakeLists.txt
+├── app
+│   ├── CMakeLists.txt
+│   └── main.c
+├── build
+│   ├── CMakeCache.txt
+│   ├── CMakeFiles
+│   │   ├── 3.28.3
+│   │   │   ├── CMakeCCompiler.cmake
+│   │   │   ├── CMakeDetermineCompilerABI_C.bin
+│   │   │   ├── CMakeSystem.cmake
+│   │   │   └── CompilerIdC
+│   │   │       ├── CMakeCCompilerId.c
+│   │   │       ├── a.out
+│   │   │       └── tmp
+│   │   ├── CMakeConfigureLog.yaml
+│   │   ├── CMakeDirectoryInformation.cmake
+│   │   ├── CMakeScratch
+│   │   ├── Makefile.cmake
+│   │   ├── Makefile2
+│   │   ├── TargetDirectories.txt
+│   │   ├── cmake.check_cache
+│   │   ├── pkgRedirects
+│   │   └── progress.marks
+│   ├── Makefile
+│   ├── app
+│   │   ├── CMakeFiles
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   ├── my_app.dir
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   ├── main.c.o
+│   │   │   │   ├── main.c.o.d
+│   │   │   │   └── progress.make
+│   │   │   └── progress.marks
+│   │   ├── Makefile
+│   │   ├── cmake_install.cmake
+│   │   └── my_app
+│   ├── cmake_install.cmake
+│   ├── libA
+│   │   ├── CMakeFiles
+│   │   │   ├── CMakeDirectoryInformation.cmake
+│   │   │   ├── libA.dir
+│   │   │   │   ├── DependInfo.cmake
+│   │   │   │   ├── build.make
+│   │   │   │   ├── cmake_clean.cmake
+│   │   │   │   ├── cmake_clean_target.cmake
+│   │   │   │   ├── compiler_depend.make
+│   │   │   │   ├── compiler_depend.ts
+│   │   │   │   ├── depend.make
+│   │   │   │   ├── flags.make
+│   │   │   │   ├── link.txt
+│   │   │   │   ├── progress.make
+│   │   │   │   └── src
+│   │   │   │       ├── libA.c.o
+│   │   │   │       └── libA.c.o.d
+│   │   │   └── progress.marks
+│   │   ├── Makefile
+│   │   ├── cmake_install.cmake
+│   │   ├── liblibA.a
+│   │   └── sub
+│   │       ├── CMakeFiles
+│   │       │   ├── CMakeDirectoryInformation.cmake
+│   │       │   ├── libA_sub.dir
+│   │       │   │   ├── DependInfo.cmake
+│   │       │   │   ├── build.make
+│   │       │   │   ├── cmake_clean.cmake
+│   │       │   │   ├── cmake_clean_target.cmake
+│   │       │   │   ├── compiler_depend.make
+│   │       │   │   ├── compiler_depend.ts
+│   │       │   │   ├── depend.make
+│   │       │   │   ├── flags.make
+│   │       │   │   ├── link.txt
+│   │       │   │   ├── progress.make
+│   │       │   │   └── src
+│   │       │   │       ├── libA_sub.c.o
+│   │       │   │       └── libA_sub.c.o.d
+│   │       │   └── progress.marks
+│   │       ├── Makefile
+│   │       ├── cmake_install.cmake
+│   │       └── liblibA_sub.a
+│   └── libB
+│       ├── CMakeFiles
+│       │   ├── CMakeDirectoryInformation.cmake
+│       │   ├── libB.dir
+│       │   │   ├── DependInfo.cmake
+│       │   │   ├── build.make
+│       │   │   ├── cmake_clean.cmake
+│       │   │   ├── cmake_clean_target.cmake
+│       │   │   ├── compiler_depend.make
+│       │   │   ├── compiler_depend.ts
+│       │   │   ├── depend.make
+│       │   │   ├── flags.make
+│       │   │   ├── link.txt
+│       │   │   ├── progress.make
+│       │   │   └── src
+│       │   │       ├── libB.c.o
+│       │   │       └── libB.c.o.d
+│       │   └── progress.marks
+│       ├── Makefile
+│       ├── cmake_install.cmake
+│       ├── liblibB.a
+│       └── sub
+│           ├── CMakeFiles
+│           │   ├── CMakeDirectoryInformation.cmake
+│           │   ├── libB_sub.dir
+│           │   │   ├── DependInfo.cmake
+│           │   │   ├── build.make
+│           │   │   ├── cmake_clean.cmake
+│           │   │   ├── cmake_clean_target.cmake
+│           │   │   ├── compiler_depend.make
+│           │   │   ├── compiler_depend.ts
+│           │   │   ├── depend.make
+│           │   │   ├── flags.make
+│           │   │   ├── link.txt
+│           │   │   ├── progress.make
+│           │   │   └── src
+│           │   │       ├── libB_sub.c.o
+│           │   │       └── libB_sub.c.o.d
+│           │   └── progress.marks
+│           ├── Makefile
+│           ├── cmake_install.cmake
+│           └── liblibB_sub.a
+├── libA
+│   ├── CMakeLists.txt
+│   ├── include
+│   │   └── libA.h
+│   ├── src
+│   │   └── libA.c
+│   └── sub
+│       ├── CMakeLists.txt
+│       ├── include
+│       │   └── libA_sub.h
+│       └── src
+│           └── libA_sub.c
+├── libB
+│   ├── CMakeLists.txt
+│   ├── include
+│   │   └── libB.h
+│   ├── src
+│   │   └── libB.c
+│   └── sub
+│       ├── CMakeLists.txt
+│       ├── include
+│       │   └── libB_sub.h
+│       └── src
+│           └── libB_sub.c
+├── structure.txt
+└── xbuild.sh
+
+40 directories, 116 files
