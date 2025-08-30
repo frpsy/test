@@ -1,29 +1,38 @@
-// app/main.c
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
+
+#define NUM_THREADS 5
 
 void *print_message(void *arg)
 {
-    char *message = (char *)arg;
-    printf("Thread says: %s\n", message);
+    int thread_num = *(int *)arg;
+    printf("Hello from thread 2 %d\n", thread_num);
+    free(arg); // 동적 할당 해제
     return NULL;
 }
 
 int main()
 {
-    pthread_t thread;
-    const char *msg = "Hello from a thread!";
+    pthread_t threads[NUM_THREADS];
 
-    // 스레드 생성
-    if (pthread_create(&thread, NULL, print_message, (void *)msg) != 0)
+    for (int i = 0; i < NUM_THREADS; ++i)
     {
-        perror("pthread_create failed");
-        return 1;
+        int *thread_num = malloc(sizeof(int)); // 고유 번호를 위한 동적 메모리
+        *thread_num = i + 1;
+
+        if (pthread_create(&threads[i], NULL, print_message, thread_num) != 0)
+        {
+            perror("pthread_create failed");
+            return 1;
+        }
     }
 
-    // 메인 스레드는 여기서 기다림
-    pthread_join(thread, NULL);
+    // 모든 스레드 종료 대기
+    for (int i = 0; i < NUM_THREADS; ++i)
+    {
+        pthread_join(threads[i], NULL);
+    }
 
     printf("Main thread done.\n");
     return 0;

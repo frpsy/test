@@ -23,4 +23,5 @@ libA/sub/CMakeFiles/libA_sub.dir/src/libA_sub.c.o: \
  /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/floatn.h \
- /usr/include/x86_64-linux-gnu/bits/floatn-common.h
+ /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
+ /home/frpsy/study/makelist-project/libA/sub/include/libA_sub.h

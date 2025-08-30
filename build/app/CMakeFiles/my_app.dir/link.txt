@@ -1,1 +1,1 @@
-/usr/bin/cc -g CMakeFiles/my_app.dir/main.c.o -o my_app  ../libA/liblibA.a ../libB/liblibB.a ../libA/sub/liblibA_sub.a ../libB/sub/liblibB_sub.a 
+/usr/bin/cc -g CMakeFiles/my_app.dir/main.c.o -o my_app  ../libA/liblibA.a ../libB/liblibB.a -lpthread ../libA/sub/liblibA_sub.a ../libB/sub/liblibB_sub.a 
