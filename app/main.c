@@ -4,11 +4,24 @@
 
 #define NUM_THREADS 5
 
-void *print_message(void *arg)
+int counter = 0;      // 공유 변수
+pthread_mutex_t lock; // 뮤텍스 선언
+
+void *thread_func(void *arg)
 {
-    int thread_num = *(int *)arg;
-    printf("Hello from thread 2 %d\n", thread_num);
-    free(arg); // 동적 할당 해제
+    int thread_id = *(int *)arg;
+
+    // 뮤텍스 잠금
+    pthread_mutex_lock(&lock);
+
+    int local = counter;
+    printf("Thread %d sees counter = %d\n", thread_id, local);
+    counter = local + 1;
+
+    // 뮤텍스 해제
+    pthread_mutex_unlock(&lock);
+
+    free(arg);
     return NULL;
 }
 
@@ -16,24 +29,34 @@ int main()
 {
     pthread_t threads[NUM_THREADS];
 
+    // 뮤텍스 초기화
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        perror("pthread_mutex_init");
+        return 1;
+    }
+
+    // 스레드 생성
     for (int i = 0; i < NUM_THREADS; ++i)
     {
-        int *thread_num = malloc(sizeof(int)); // 고유 번호를 위한 동적 메모리
-        *thread_num = i + 1;
-
-        if (pthread_create(&threads[i], NULL, print_message, thread_num) != 0)
+        int *thread_id = malloc(sizeof(int));
+        *thread_id = i + 1;
+        if (pthread_create(&threads[i], NULL, thread_func, thread_id) != 0)
         {
-            perror("pthread_create failed");
+            perror("pthread_create");
             return 1;
         }
     }
 
-    // 모든 스레드 종료 대기
+    // 스레드 종료 대기
     for (int i = 0; i < NUM_THREADS; ++i)
     {
         pthread_join(threads[i], NULL);
     }
 
-    printf("Main thread done.\n");
+    // 뮤텍스 파괴
+    pthread_mutex_destroy(&lock);
+
+    printf("Final counter = %d\n", counter);
     return 0;
 }
