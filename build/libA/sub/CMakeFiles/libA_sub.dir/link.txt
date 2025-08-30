@@ -1,2 +1,0 @@
-/usr/bin/ar qc liblibA_sub.a CMakeFiles/libA_sub.dir/src/libA_sub.c.o
-/usr/bin/ranlib liblibA_sub.a
