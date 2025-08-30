@@ -35,9 +35,14 @@ else
 fi
 
 echo "🔨 Building project..."
+START_TIME=$(date +%s)
+
 cmake --build "$BUILD_DIR" -- -j$JOBS
 
-echo "✅ Build finished."
+END_TIME=$(date +%s)
+ELAPSED=$((END_TIME - START_TIME))
+
+echo "✅ Build finished. (took ${ELAPSED}s)"
 
 if [ "$RUN_AFTER_BUILD" = true ]; then
     echo "🚀 Running ./build/app/my_app"
