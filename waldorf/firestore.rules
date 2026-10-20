@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.uid in ['__ADMIN__']; }
+    function closed() {
+      return exists(/databases/$(db)/documents/w_settings/state) && get(/databases/$(db)/documents/w_settings/state).data.closed == true;
+    }
+    // 다른 기기에서 비밀번호로 수정: 본인이 쓴 claim 의 pin 이 저장된 pin 과 같아야 함
+    function pinOk(id) {
+      let c = /databases/$(db)/documents/w_claims/$(id + '_' + request.auth.uid);
+      let p = /databases/$(db)/documents/w_pins/$(id);
+      return exists(c) && exists(p) && get(c).data.pin == get(p).data.pin;
+    }
+    function validOrder() {
+      let d = request.resource.data;
+      return d.owner == request.auth.uid
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 20
+        && d.memo is string && d.memo.size() <= 100
+        && d.qty is map && d.amount is number;
+    }
+
+    // 기존 페이지(/test/) 주문
+    match /orders/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+
+    // 발도르프 취합용 페이지(/test/waldorf/)
+    match /w_orders/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && !closed() && validOrder();
+      allow update: if signedIn() && !closed() && validOrder()
+        && (resource.data.owner == request.auth.uid || pinOk(id));
+      allow delete: if isAdmin()
+        || (signedIn() && !closed() && (resource.data.owner == request.auth.uid || pinOk(id)));
+    }
+    match /w_pins/{id} {
+      allow create: if signedIn() && !exists(/databases/$(db)/documents/w_pins/$(id))
+        && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$')
+        && getAfter(/databases/$(db)/documents/w_orders/$(id)).data.owner == request.auth.uid;
+      allow update: if signedIn()
+        && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$')
+        && getAfter(/databases/$(db)/documents/w_orders/$(id)).data.owner == request.auth.uid
+        && (get(/databases/$(db)/documents/w_orders/$(id)).data.owner == request.auth.uid || pinOk(id));
+      allow read, delete: if false;
+    }
+    match /w_claims/{cid} {
+      allow create, update: if signedIn() && cid.matches('^[A-Za-z0-9]+_' + request.auth.uid + '$')
+        && request.resource.data.pin is string;
+      allow read, delete: if false;
+    }
+    match /w_settings/{d} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
