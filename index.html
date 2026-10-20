@@ -1,5 +1,11 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>얌샘김밥 단체주문</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta property="og:title" content="얌샘김밥 단체주문">
+<meta property="og:description" content="메뉴를 선택하고 주문을 등록해 주세요!">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
 <style>
@@ -16,31 +22,28 @@
   --danger: #c0392b;
   --ok: #2f8f5b;
   --font: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --bg: #1c1713; --card: #271f19; --fg: #f4ebe1; --muted: #b3a08d; --line: #3d3128;
     --accent: #f08c4a; --accent-ink: #ffb07a; --accent-soft: #3a2a1e; --danger: #ff8070; --ok: #6fd09a;
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #1c1713; --card: #271f19; --fg: #f4ebe1; --muted: #b3a08d; --line: #3d3128;
-  --accent: #f08c4a; --accent-ink: #ffb07a; --accent-soft: #3a2a1e; --danger: #ff8070; --ok: #6fd09a;
-  color-scheme: dark;
-}
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; margin: 0; }
-.band { background: #e87b35; color: #fff; }
+[hidden] { display: none !important; }
+.band { background: #e87b35; color: #fff; padding-top: env(safe-area-inset-top, 0px); }
 .inner { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-header .inner { padding-block: 20px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-h1 { margin: 0; font-size: 22px; font-weight: 900; text-wrap: balance; }
+header .inner { padding-block: 20px; }
+h1 { margin: 0; font-size: 22px; font-weight: 900; }
 header p { margin: 2px 0 0; font-size: 13px; opacity: .92; }
-.hbtn { background: #d9622a; color: #fff; border: 0; border-radius: 10px; padding: 10px 14px; font: 500 13px var(--font); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
 main { padding-block: 16px 40px; display: grid; gap: 16px; }
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--accent-soft); padding: 5px; border-radius: 12px; }
 .tabs button { border: 0; background: transparent; color: var(--muted); font: 700 14px var(--font); padding: 10px; border-radius: 9px; cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--card); color: var(--accent-ink); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.view { display: grid; gap: 16px; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 12px; }
 .panel.warm { background: var(--accent-soft); }
 h2 { margin: 0; font-size: 17px; font-weight: 700; }
@@ -54,30 +57,32 @@ h2 { margin: 0; font-size: 17px; font-weight: 700; }
 .total span:last-child { color: var(--accent-ink); font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
 label { font-size: 13px; color: var(--muted); font-weight: 500; display: block; margin-bottom: 4px; }
 label i { color: var(--danger); font-style: normal; }
-input[type=text], textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 10px; padding: 12px; font: 15px var(--font); }
+input[type=text], textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 10px; padding: 12px; font: 16px var(--font); }
 textarea { min-height: 70px; resize: vertical; }
 input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .primary { background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 14px; font: 700 16px var(--font); cursor: pointer; width: 100%; }
 .primary:disabled { opacity: .5; cursor: not-allowed; }
-.ghost { background: transparent; color: var(--accent-ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: 500 13px var(--font); cursor: pointer; }
+.ghost { background: transparent; color: var(--accent-ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 500 14px var(--font); cursor: pointer; }
 .ghost.danger { color: var(--danger); }
-.msg { font-size: 13px; min-height: 18px; }
+.msg { font-size: 14px; min-height: 20px; }
 .msg.ok { color: var(--ok); } .msg.err { color: var(--danger); }
+.banner { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; display: grid; gap: 8px; }
 .sum { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; align-items: baseline; font-variant-numeric: tabular-nums; }
 .sum .h { font-size: 12px; color: var(--muted); }
 .sum .r { text-align: right; }
 .person { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 2px; }
+.person:first-child { border-top: 0; padding-top: 0; }
 .person .top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .person .top b { overflow-wrap: anywhere; }
 .person .items, .person .memo { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+#people { display: grid; gap: 10px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 12px 0; }
-.note { color: var(--muted); font-size: 12px; }
 </style>
-
+</head>
+<body>
 <header class="band"><div class="inner">
-  <div><h1>얌샘김밥 단체주문</h1><p>메뉴를 선택하고 주문을 등록해 주세요!</p></div>
-  <button class="hbtn" id="openEdit" type="button">내 주문 수정/취소</button>
+  <h1>얌샘김밥 단체주문</h1><p>메뉴를 선택하고 주문을 등록해 주세요!</p>
 </div></header>
 
 <main class="inner">
@@ -86,7 +91,11 @@ input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px
     <button role="tab" id="tabSum" aria-selected="false" type="button">취합 현황 <span id="cnt"></span></button>
   </div>
 
-  <section id="orderView" style="display:contents">
+  <section class="view" id="orderView">
+    <div class="banner" id="mineBanner" hidden>
+      <div><b>이미 주문하셨습니다.</b> 아래에서 수정 후 저장하거나 주문을 취소할 수 있습니다.</div>
+      <div class="row"><button class="ghost danger" id="cancel" type="button">주문 취소</button></div>
+    </div>
     <div class="panel warm">
       <h2>메뉴 선택</h2>
       <div id="menu" style="display:grid;gap:10px"></div>
@@ -96,13 +105,12 @@ input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px
       <h2>주문자 정보 입력</h2>
       <div><label for="name">성함 <i>*</i></label><input type="text" id="name" placeholder="이름을 입력하세요" autocomplete="name" maxlength="20"></div>
       <div><label for="memo">요청사항 (선택)</label><textarea id="memo" placeholder="예: 오이 빼주세요" maxlength="100"></textarea></div>
-      <div class="msg" id="msg" role="status"></div>
-      <button class="primary" id="submit" type="button">주문 등록하기</button>
-      <div class="note" id="editing" hidden></div>
+      <div class="msg" id="msg" role="status">연결 중입니다...</div>
+      <button class="primary" id="submit" type="button" disabled>주문 등록하기</button>
     </div>
   </section>
 
-  <section id="sumView" hidden style="display:none;gap:16px">
+  <section class="view" id="sumView" hidden>
     <div class="panel warm">
       <h2>메뉴별 수량</h2>
       <div class="sum" id="sumTable"></div>
@@ -114,16 +122,22 @@ input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px
       <div id="people"></div>
     </div>
   </section>
-
-  <section class="panel" id="editView" hidden>
-    <h2>내 주문 수정/취소</h2>
-    <div><label for="findName">주문할 때 입력한 성함</label><input type="text" id="findName" placeholder="이름을 입력하세요"></div>
-    <div id="found" style="display:grid;gap:10px"></div>
-    <button class="ghost" id="closeEdit" type="button">닫기</button>
-  </section>
 </main>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDiony5nb0_X70KGcx_gNM7NCK7wAeOsyA",
+  authDomain: "kimbap-order.firebaseapp.com",
+  projectId: "kimbap-order",
+  storageBucket: "kimbap-order.firebasestorage.app",
+  messagingSenderId: "478294235011",
+  appId: "1:478294235011:web:0067157bb0924e7bde88b6",
+};
+
 const MENU = [
   { id: "basic", name: "얌샘김밥(기본)", price: 4200 },
   { id: "tuna", name: "참치샐러드김밥", price: 5300 },
@@ -132,14 +146,19 @@ const MENU = [
 ];
 const won = n => n.toLocaleString("ko-KR") + "원";
 const $ = id => document.getElementById(id);
-let qty = Object.fromEntries(MENU.map(m => [m.id, 0]));
-let orders = [];
-let db = null, editingId = null;
-let ordersCol = null;
-
-function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+const zero = () => Object.fromEntries(MENU.map(m => [m.id, 0]));
 const total = q => MENU.reduce((s, m) => s + m.price * (q[m.id] || 0), 0);
 const lines = q => MENU.filter(m => q[m.id] > 0).map(m => m.name + " x" + q[m.id]).join(", ");
+
+let qty = zero();
+let orders = [];
+let uid = null, myOrder = null, dirty = false;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+function setMsg(t, cls) { const m = $("msg"); m.textContent = t; m.className = "msg " + (cls || ""); }
 
 function renderMenu() {
   $("menu").innerHTML = MENU.map(m => `
@@ -150,60 +169,82 @@ function renderMenu() {
 }
 $("menu").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
-  const id = b.dataset.id; qty[id] = Math.max(0, qty[id] + Number(b.dataset.d));
-  renderMenu();
+  qty[b.dataset.id] = Math.max(0, qty[b.dataset.id] + Number(b.dataset.d));
+  dirty = true; renderMenu();
 });
+$("name").addEventListener("input", () => dirty = true);
+$("memo").addEventListener("input", () => dirty = true);
 
-function setMsg(t, cls) { const m = $("msg"); m.textContent = t; m.className = "msg " + (cls || ""); }
-
-function resetForm() {
-  qty = Object.fromEntries(MENU.map(m => [m.id, 0]));
-  editingId = null; $("memo").value = ""; $("editing").hidden = true;
-  $("submit").textContent = "주문 등록하기"; renderMenu();
+function loadMine() {
+  $("mineBanner").hidden = !myOrder;
+  $("submit").textContent = myOrder ? "수정 내용 저장하기" : "주문 등록하기";
+  if (myOrder && !dirty) {
+    qty = { ...zero(), ...myOrder.qty };
+    $("name").value = myOrder.name || "";
+    $("memo").value = myOrder.memo || "";
+    renderMenu();
+  }
 }
 
 $("submit").addEventListener("click", async () => {
   const name = $("name").value.trim();
   if (!name) { setMsg("성함을 입력해 주세요.", "err"); $("name").focus(); return; }
   if (total(qty) === 0) { setMsg("메뉴를 1개 이상 선택해 주세요.", "err"); return; }
-  if (!ordersCol) { setMsg("저장소에 연결되지 못했습니다. 로그인 상태와 공유 권한을 확인해 주세요.", "err"); return; }
+  if (!uid) { setMsg("아직 연결되지 않았습니다. 잠시 후 다시 눌러 주세요.", "err"); return; }
   $("submit").disabled = true;
+  const was = !!myOrder;
   try {
-    const id = editingId || (store("myOrder:" + name) || null);
-    const ref = id ? ordersCol.doc(id) : ordersCol.doc();
-    await ref.set({ name, memo: $("memo").value.trim(), qty: { ...qty }, amount: total(qty), updatedAt: Date.now() });
-    store("myOrder:" + name, ref.id); store("myName", name);
-    const was = !!id;
-    resetForm();
+    await setDoc(doc(db, "orders", uid), { name, memo: $("memo").value.trim(), qty: { ...qty }, amount: total(qty), updatedAt: serverTimestamp() });
+    dirty = false;
     setMsg(was ? "주문이 수정되었습니다." : "주문이 등록되었습니다. 감사합니다!", "ok");
   } catch (e) {
-    setMsg(e && e.code === "invalid_argument" ? "주문 등록 권한이 없습니다. 링크 공유 권한(Contributor 이상)을 확인해 주세요." : "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.", "err");
+    setMsg("저장에 실패했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.", "err");
   }
   $("submit").disabled = false;
 });
 
+let cancelArmed = false;
+$("cancel").addEventListener("click", async () => {
+  if (!cancelArmed) { cancelArmed = true; $("cancel").textContent = "정말 취소할까요? 한 번 더 누르세요"; return; }
+  cancelArmed = false; $("cancel").textContent = "주문 취소";
+  try {
+    await deleteDoc(doc(db, "orders", uid));
+    qty = zero(); $("memo").value = ""; dirty = false; renderMenu();
+    setMsg("주문이 취소되었습니다.", "ok");
+  } catch (e) { setMsg("취소에 실패했습니다. 다시 시도해 주세요.", "err"); }
+});
+
+function counts() {
+  const c = zero();
+  orders.forEach(o => MENU.forEach(m => c[m.id] += (o.qty && o.qty[m.id]) || 0));
+  return c;
+}
+const grand = () => orders.reduce((s, o) => s + total(o.qty || {}), 0);
+
 function renderSummary() {
   $("cnt").textContent = orders.length ? "(" + orders.length + ")" : "";
-  const cnt = Object.fromEntries(MENU.map(m => [m.id, 0]));
-  orders.forEach(o => MENU.forEach(m => cnt[m.id] += (o.qty && o.qty[m.id]) || 0));
+  const c = counts();
   $("sumTable").innerHTML = `<span class="h">메뉴</span><span class="h r">수량</span><span class="h r">금액</span>` +
-    MENU.map(m => `<span>${m.name}</span><b class="r">${cnt[m.id]}</b><span class="r">${won(cnt[m.id] * m.price)}</span>`).join("");
-  $("grand").textContent = won(orders.reduce((s, o) => s + total(o.qty || {}), 0));
-  $("people").innerHTML = orders.length ? orders.map(o => `
-    <div class="person"><div class="top"><b></b><span>${won(total(o.qty || {}))}</span></div>
-    <div class="items"></div>${o.memo ? '<div class="memo"></div>' : ""}</div>`).join("") : `<div class="empty">아직 등록된 주문이 없습니다.</div>`;
-  [...$("people").querySelectorAll(".person")].forEach((el, i) => {
-    el.querySelector("b").textContent = orders[i].name;
-    el.querySelector(".items").textContent = lines(orders[i].qty || {});
-    const m = el.querySelector(".memo"); if (m) m.textContent = "요청: " + orders[i].memo;
+    MENU.map(m => `<span>${m.name}</span><b class="r">${c[m.id]}</b><span class="r">${won(c[m.id] * m.price)}</span>`).join("");
+  $("grand").textContent = won(grand());
+  const box = $("people");
+  box.innerHTML = "";
+  if (!orders.length) { box.innerHTML = `<div class="empty">아직 등록된 주문이 없습니다.</div>`; return; }
+  orders.forEach(o => {
+    const d = document.createElement("div"); d.className = "person";
+    d.innerHTML = '<div class="top"><b></b><span></span></div><div class="items"></div>';
+    d.querySelector("b").textContent = o.name + (o.id === uid ? " (나)" : "");
+    d.querySelector("span").textContent = won(total(o.qty || {}));
+    d.querySelector(".items").textContent = lines(o.qty || {});
+    if (o.memo) { const m = document.createElement("div"); m.className = "memo"; m.textContent = "요청: " + o.memo; d.appendChild(m); }
+    box.appendChild(d);
   });
 }
 
 $("copy").addEventListener("click", async () => {
-  const cnt = Object.fromEntries(MENU.map(m => [m.id, 0]));
-  orders.forEach(o => MENU.forEach(m => cnt[m.id] += (o.qty && o.qty[m.id]) || 0));
-  const t = "[얌샘김밥 단체주문]\n" + MENU.filter(m => cnt[m.id]).map(m => `${m.name} ${cnt[m.id]}개`).join("\n") +
-    `\n합계 ${won(orders.reduce((s, o) => s + total(o.qty || {}), 0))}\n\n` +
+  const c = counts();
+  const t = "[얌샘김밥 단체주문]\n" + MENU.filter(m => c[m.id]).map(m => `${m.name} ${c[m.id]}개`).join("\n") +
+    `\n합계 ${won(grand())}\n\n` +
     orders.map(o => `${o.name}: ${lines(o.qty || {})} (${won(total(o.qty || {}))})${o.memo ? " / " + o.memo : ""}`).join("\n");
   try { await navigator.clipboard.writeText(t); $("copy").textContent = "복사되었습니다"; }
   catch (e) { $("copy").textContent = "복사에 실패했습니다"; }
@@ -212,55 +253,28 @@ $("copy").addEventListener("click", async () => {
 
 function tab(which) {
   const s = which === "sum";
-  $("orderView").style.display = s ? "none" : "contents";
-  $("sumView").style.display = s ? "grid" : "none";
+  $("orderView").hidden = s; $("sumView").hidden = !s;
   $("tabOrder").setAttribute("aria-selected", String(!s));
   $("tabSum").setAttribute("aria-selected", String(s));
-  $("editView").hidden = true;
 }
 $("tabOrder").onclick = () => tab("order");
 $("tabSum").onclick = () => tab("sum");
 
-function renderFound() {
-  const q = $("findName").value.trim();
-  const list = q ? orders.filter(o => o.name === q) : [];
-  const box = $("found");
-  box.innerHTML = "";
-  if (!q) return;
-  if (!list.length) { box.innerHTML = '<div class="empty">해당 이름의 주문이 없습니다.</div>'; return; }
-  list.forEach(o => {
-    const d = document.createElement("div"); d.className = "person";
-    d.innerHTML = '<div class="top"><b></b><span></span></div><div class="items"></div><div class="row"><button class="ghost" data-a="edit" type="button">수정</button><button class="ghost danger" data-a="del" type="button">취소(삭제)</button></div>';
-    d.querySelector("b").textContent = o.name; d.querySelector("span").textContent = won(total(o.qty || {}));
-    d.querySelector(".items").textContent = lines(o.qty || {});
-    d.querySelector('[data-a=edit]').onclick = () => {
-      qty = { ...Object.fromEntries(MENU.map(m => [m.id, 0])), ...o.qty };
-      $("name").value = o.name; $("memo").value = o.memo || ""; editingId = o.id;
-      $("editing").hidden = false; $("editing").textContent = "수정 중입니다. 변경 후 '주문 등록하기'를 눌러 주세요.";
-      $("submit").textContent = "수정 내용 저장하기"; renderMenu(); $("editView").hidden = true; tab("order"); window.scrollTo(0, 0);
-    };
-    const del = d.querySelector('[data-a=del]');
-    del.onclick = async () => {
-      if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "정말 취소할까요? 한 번 더 누르세요"; return; }
-      try { await ordersCol.doc(o.id).delete(); } catch (e) { del.textContent = "취소 실패. 다시 시도해 주세요"; }
-    };
-    box.appendChild(d);
-  });
-}
-$("openEdit").onclick = () => { tab("order"); $("editView").hidden = false; const n = store("myName"); if (n && !$("findName").value) $("findName").value = n; renderFound(); $("editView").scrollIntoView({ behavior: "smooth" }); };
-$("closeEdit").onclick = () => $("editView").hidden = true;
-$("findName").addEventListener("input", renderFound);
-
 renderMenu(); renderSummary();
-const savedName = store("myName"); if (savedName) $("name").value = savedName;
 
-(async () => {
-  db = await claude.use("db");
-  if (!db) { setMsg("로그인 후 공유 링크로 접속하면 주문을 등록할 수 있습니다.", "err"); return; }
-  ordersCol = db.collection("orders");
-  ordersCol.orderBy("updatedAt", "asc").onSnapshot(snap => {
-    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderSummary(); if (!$("editView").hidden) renderFound();
-  }, e => setMsg("주문 목록을 불러오지 못했습니다.", "err"));
-})();
+let started = false;
+onAuthStateChanged(auth, user => {
+  if (!user || started) return;
+  started = true; uid = user.uid;
+  setMsg(""); $("submit").disabled = false;
+  onSnapshot(collection(db, "orders"), snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.updatedAt?.toMillis?.() ?? Infinity) - (b.updatedAt?.toMillis?.() ?? Infinity));
+    myOrder = orders.find(o => o.id === uid) || null;
+    loadMine(); renderSummary();
+  }, () => setMsg("주문 목록을 불러오지 못했습니다. 새로고침해 주세요.", "err"));
+});
+signInAnonymously(auth).catch(() => setMsg("연결에 실패했습니다. 새로고침해 주세요.", "err"));
 </script>
+</body>
+</html>
