@@ -78,6 +78,9 @@ input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px
 #people { display: grid; gap: 10px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 12px 0; }
+.note { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.note code { color: var(--fg); font-size: 12px; }
+.person .ghost.danger { justify-self: start; margin-top: 6px; padding: 6px 10px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -111,6 +114,13 @@ input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px
   </section>
 
   <section class="view" id="sumView" hidden>
+    <div class="panel" id="adminPanel" hidden>
+      <h2>관리자 모드</h2>
+      <div class="note">이 기기의 관리자 코드: <code id="adminCode">연결 중...</code></div>
+      <div class="note">처음 한 번만: 아래 버튼으로 규칙을 복사해 Firebase 콘솔 → Firestore → 규칙에 통째로 붙여 넣고 게시하세요. 그 뒤 이 기기에서 주문 옆 삭제 버튼이 동작합니다.</div>
+      <div class="row"><button class="ghost" id="copyRules" type="button">관리자 규칙 복사</button></div>
+      <div class="msg" id="adminMsg" role="status"></div>
+    </div>
     <div class="panel warm">
       <h2>메뉴별 수량</h2>
       <div class="sum" id="sumTable"></div>
@@ -237,6 +247,16 @@ function renderSummary() {
     d.querySelector("span").textContent = won(total(o.qty || {}));
     d.querySelector(".items").textContent = lines(o.qty || {});
     if (o.memo) { const m = document.createElement("div"); m.className = "memo"; m.textContent = "요청: " + o.memo; d.appendChild(m); }
+    if (adminMode) {
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "ghost danger"; del.textContent = "삭제";
+      del.onclick = async () => {
+        if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "정말 삭제할까요? 한 번 더 누르세요"; return; }
+        try { await deleteDoc(doc(db, "orders", o.id)); setAdminMsg(o.name + " 님의 주문을 삭제했습니다.", "ok"); }
+        catch (e) { setAdminMsg("삭제 권한이 없습니다. 위의 관리자 규칙을 Firebase에 게시했는지 확인해 주세요.", "err"); del.dataset.sure = ""; del.textContent = "삭제"; }
+      };
+      d.appendChild(del);
+    }
     box.appendChild(d);
   });
 }
@@ -260,12 +280,38 @@ function tab(which) {
 $("tabOrder").onclick = () => tab("order");
 $("tabSum").onclick = () => tab("sum");
 
+// 관리자 모드: 주소 끝에 #admin 을 붙여 한 번 열면 이 기기에서 계속 켜짐
+let adminMode = false;
+try {
+  if (location.hash === "#admin") localStorage.setItem("kimbapAdmin", "1");
+  adminMode = localStorage.getItem("kimbapAdmin") === "1";
+} catch (e) { adminMode = location.hash === "#admin"; }
+$("adminPanel").hidden = !adminMode;
+function setAdminMsg(t, cls) { const m = $("adminMsg"); m.textContent = t; m.className = "msg " + (cls || ""); }
+const rulesText = id => `rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /orders/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid in ['${id}'];
+    }
+  }
+}`;
+$("copyRules").addEventListener("click", async () => {
+  if (!uid) { setAdminMsg("아직 연결되지 않았습니다. 잠시 후 다시 눌러 주세요.", "err"); return; }
+  try { await navigator.clipboard.writeText(rulesText(uid)); setAdminMsg("규칙이 복사되었습니다. Firebase 규칙 탭에 붙여 넣고 게시하세요.", "ok"); }
+  catch (e) { setAdminMsg("복사에 실패했습니다.", "err"); }
+});
+if (adminMode && location.hash === "#admin") tab("sum");
+
 renderMenu(); renderSummary();
 
 let started = false;
 onAuthStateChanged(auth, user => {
   if (!user || started) return;
   started = true; uid = user.uid;
+  $("adminCode").textContent = uid;
   setMsg(""); $("submit").disabled = false;
   onSnapshot(collection(db, "orders"), snap => {
     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }))
