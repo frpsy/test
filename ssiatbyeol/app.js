@@ -259,7 +259,7 @@ async function renderAdmin() {
         <p class="muted">${esc(user.email)}</p>
         <div class="actions" style="margin:0 0 16px">
             <button class="primary" id="new">새 조사 만들기</button>
-            <button id="new-meal">급식·돌봄 예시로 만들기</button>
+            <button id="new-meal">씨앗별 방학 급식·돌봄 조사 만들기</button>
             <button id="logout">로그아웃</button>
         </div>
         ${items || '<p class="muted">아직 만든 조사가 없습니다. 비슷한 조사를 반복한다면 기존 조사를 복제하면 편합니다.</p>'}`;
@@ -338,19 +338,29 @@ function datesBetween(from, to, dows) {
     return out;
 }
 
-// 방학 급식·돌봄 조사 예시 (날짜는 만들 때 고쳐 쓴다)
+// 씨앗별 가을방학 급식·돌봄 조사 (만들기 화면에서 그대로 저장하면 된다)
 function mealPreset() {
     const q = (text, type, required, labels) => ({
         id: 'q' + rid(), text, type, required, optionsText: labels.join('\n'), _opts: []
     });
     return {
-        title: '방학 중 급식·돌봄 신청 조사',
-        description: '학부모님께 드리는 익명 조사입니다. 이름은 받지 않습니다. 급식이 필요한 요일의 인원(자녀 수)을 입력해 주세요. 집계 인원은 급식 업체에 전달됩니다.',
-        showResults: false, allowComment: true, closesAt: null,
+        title: '씨앗별 가을방학 급식·돌봄 신청',
+        description: [
+            '씨앗별 학부모님께 드리는 익명 조사입니다. 이름은 받지 않습니다.',
+            '',
+            '방학 기간: 10월 26일(월) ~ 10월 30일(금)',
+            '급식은 지난번처럼 유랑에서 진행합니다. 급식이 필요한 요일에 아이 수를 입력해 주세요. 집계 인원은 유랑에 전달됩니다.',
+            '10월 26일(월)은 교사 전체회의가 있어 부모돌봄이 필요합니다. 도와주실 수 있는 시간을 선택해 주세요.',
+            '부모돌봄에 지원해 주시는 분은 아래 의견란에 아이 이름이나 연락처를 남겨 주세요. 의견란은 관리자만 볼 수 있습니다.',
+            '',
+            '10월 21일(수)까지 답해 주세요.'
+        ].join('\n'),
+        showResults: true, allowComment: true,
+        closesAt: new Date(2026, 9, 21, 23, 59).getTime(),
         questions: [
-            q('방학 중 급식이 필요한 요일별 인원', 'count', false,
+            q('급식이 필요한 요일별 아이 수 (명)', 'count', false,
                 ['10월 26일(월)', '10월 27일(화)', '10월 28일(수)', '10월 29일(목)', '10월 30일(금)']),
-            q('10월 26일(월) 교사 전체회의 — 부모돌봄 지원 가능 시간', 'multi', false, ['오전', '오후'])
+            q('10월 26일(월) 부모돌봄 — 도와주실 수 있는 시간', 'multi', false, ['오전', '오후'])
         ]
     };
 }
