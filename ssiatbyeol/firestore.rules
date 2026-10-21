@@ -1,0 +1,77 @@
+rules_version = '2';
+
+// 씨앗별 학부모 익명 조사 규칙
+// - 컬렉션 이름이 모두 ss_ 로 시작합니다. 같은 Firebase 프로젝트의 기존 규칙(waldorf 등)이 있으면
+//   이 파일의 function 2개와 match 블록 2개를 기존 `match /databases/{db}/documents { ... }` 안에
+//   "추가"하세요. 기존 규칙을 이 파일로 덮어쓰면 다른 페이지가 멈춥니다.
+// - 조사 만들기·수정·삭제·목록: 관리자(Google 로그인 + ss_admins 허용 목록)만
+// - 조사 열람(링크를 아는 사람): 누구나, 목록 나열은 불가
+// - 응답: 익명 로그인한 본인 uid 문서 하나만 쓰기, 조사가 열려 있을 때만
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function ssIsAdmin() {
+      return request.auth != null
+          && request.auth.token.email_verified == true
+          && exists(/databases/$(db)/documents/ss_admins/$(request.auth.token.email));
+    }
+
+    function ssValidSurvey(d) {
+      return d.keys().hasOnly(['title', 'description', 'ownerUid', 'questions', 'status',
+                               'showResults', 'allowComment', 'closesAt', 'createdAt'])
+          && d.title is string && d.title.size() > 0 && d.title.size() <= 100
+          && d.description is string && d.description.size() <= 1000
+          && d.questions is list && d.questions.size() >= 1 && d.questions.size() <= 30
+          && d.status in ['open', 'closed']
+          && d.showResults is bool
+          && d.allowComment is bool
+          && (d.closesAt == null || d.closesAt is timestamp)
+          && d.ownerUid == request.auth.uid;
+    }
+
+    // 콘솔에서 ss_admins/{이메일} 문서를 직접 만들어 허용 목록을 관리합니다. 클라이언트는 접근 불가.
+    match /ss_admins/{email} {
+      allow read, write: if false;
+    }
+
+    match /ss_surveys/{sid} {
+      allow get: if true;
+      allow list: if ssIsAdmin() && resource.data.ownerUid == request.auth.uid;
+      allow create: if ssIsAdmin() && ssValidSurvey(request.resource.data);
+      allow update: if ssIsAdmin() && resource.data.ownerUid == request.auth.uid
+                    && ssValidSurvey(request.resource.data);
+      allow delete: if ssIsAdmin() && resource.data.ownerUid == request.auth.uid;
+
+      function survey() {
+        return get(/databases/$(db)/documents/ss_surveys/$(sid)).data;
+      }
+      function isOwner() {
+        return ssIsAdmin() && survey().ownerUid == request.auth.uid;
+      }
+      function isOpen() {
+        return survey().status == 'open'
+            && (survey().closesAt == null || request.time < survey().closesAt);
+      }
+
+      match /responses/{uid} {
+        allow create, update: if request.auth != null && request.auth.uid == uid && isOpen()
+                              && request.resource.data.keys().hasOnly(['answers', 'updatedAt'])
+                              && request.resource.data.answers is map;
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if request.auth != null && (isOwner() || survey().showResults == true);
+        allow delete: if isOwner();
+      }
+
+      // 의견은 작성 기기(uid)와 관리자만 볼 수 있습니다.
+      match /comments/{uid} {
+        allow create, update: if request.auth != null && request.auth.uid == uid && isOpen()
+                              && survey().allowComment == true
+                              && request.resource.data.keys().hasOnly(['text', 'updatedAt'])
+                              && request.resource.data.text is string
+                              && request.resource.data.text.size() <= 1000;
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list, delete: if isOwner();
+      }
+    }
+  }
+}
