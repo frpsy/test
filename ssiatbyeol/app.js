@@ -80,6 +80,38 @@ function rosterByOption(q, answersList) {
     return byOpt;
 }
 
+// 선택지 이름 끝의 "4,200원"을 단가로 읽는다
+const priceOf = (label) => {
+    const m = /([\d,]+)\s*원\s*$/.exec(label);
+    return m ? Number(m[1].replace(/,/g, '')) : 0;
+};
+const itemName = (label) => label.replace(/\s*[\d,]+\s*원\s*$/, '');
+const won = (n) => `${n.toLocaleString('ko-KR')}원`;
+
+// 수량 문항의 메뉴별 합계와 주문 건수
+function countTotals(q, answersList) {
+    const sums = Object.fromEntries(q.options.map((o) => [o.id, 0]));
+    let orders = 0;
+    answersList.forEach((a) => {
+        let any = false;
+        Object.entries(a[q.id] || {}).forEach(([oid, n]) => {
+            if (oid in sums && n > 0) { sums[oid] += n; any = true; }
+        });
+        if (any) orders += 1;
+    });
+    return { sums, orders };
+}
+
+// 채팅방에 붙여 넣는 주문 합계
+function orderText(q, answersList) {
+    const unit = q.unit || '명';
+    const { sums } = countTotals(q, answersList);
+    const lines = q.options.filter((o) => sums[o.id]).map((o) => `· ${itemName(o.label)} ${sums[o.id]}${unit}`);
+    const sum = q.options.reduce((t, o) => t + sums[o.id] * priceOf(o.label), 0);
+    if (sum) lines.push(`합계 ${won(sum)}`);
+    return lines.join('\n');
+}
+
 const rosterCount = (m) => [...m.values()].reduce((n, set) => n + set.size, 0);
 
 // 채팅방에 그대로 붙여 넣는 형식 (기존 릴레이 명단과 같은 모양)
@@ -102,7 +134,7 @@ function bindCopy(box, survey, list) {
     box.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.onclick = async () => {
             const q = survey.questions.find((x) => x.id === btn.dataset.copy);
-            const text = rosterText(q, list);
+            const text = q.type === 'roster' ? rosterText(q, list) : orderText(q, list);
             try {
                 await navigator.clipboard.writeText(text);
                 toast('명단을 복사했습니다.');
@@ -134,27 +166,22 @@ function resultsHtml(survey, answersList) {
             return `<div class="result-q"><h3>${esc(q.text)}</h3>${texts.length
                 ? `<ul class="comments">${texts.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">없음</p>'}</div>`;
         }
-        const sums = Object.fromEntries(q.options.map((o) => [o.id, 0]));
-        let families = 0;
-        answersList.forEach((a) => {
-            const v = a[q.id];
-            if (q.type === 'count') {
-                let any = false;
-                Object.entries(v || {}).forEach(([oid, n]) => {
-                    if (oid in sums && n > 0) { sums[oid] += n; any = true; }
-                });
-                if (any) families += 1;
-            } else {
-                (v || []).forEach((oid) => { if (oid in sums) sums[oid] += 1; });
-            }
-        });
+        const unit = q.unit || '명';
+        const { sums, orders } = countTotals(q, answersList);
+        if (q.type !== 'count') {
+            Object.keys(sums).forEach((k) => { sums[k] = 0; });
+            answersList.forEach((a) => (a[q.id] || []).forEach((oid) => { if (oid in sums) sums[oid] += 1; }));
+        }
         const max = Math.max(1, ...Object.values(sums));
         const rows = q.options.map((o) => {
             const pct = q.type === 'count'
                 ? Math.round((sums[o.id] / max) * 100)
                 : (total ? Math.round((sums[o.id] / total) * 100) : 0);
-            const label = q.type === 'count' ? `${sums[o.id]}명` : `${sums[o.id]}명 (${pct}%)`;
-            const who = q.listFrom
+            const price = priceOf(o.label);
+            const label = q.type === 'count'
+                ? `${sums[o.id]}${unit}${price ? ` · ${won(sums[o.id] * price)}` : ''}`
+                : `${sums[o.id]}명 (${pct}%)`;
+            const who = q.listFrom && q.type !== 'count'
                 ? answersList.filter((a) => (a[q.id] || []).includes(o.id))
                     .map((a) => String(a[q.listFrom] || '').trim() || '가정 미기재')
                 : [];
@@ -164,8 +191,24 @@ function resultsHtml(survey, answersList) {
                 ${who.length ? `<p class="muted names">${who.map(esc).join(', ')}</p>` : ''}
             </div>`;
         }).join('');
-        const note = q.type === 'count' ? `<p class="muted" style="margin:0 0 8px">${families}가정 응답</p>` : '';
-        return `<div class="result-q"><h3>${esc(q.text)}</h3>${note}${rows}</div>`;
+        const note = q.type === 'count'
+            ? `<p class="muted" style="margin:0 0 8px">${q.options.some((o) => priceOf(o.label)) ? `주문 ${orders}건` : `${orders}가정 응답`}</p>` : '';
+        let extra = '';
+        if (q.type === 'count') {
+            const sum = q.options.reduce((t, o) => t + sums[o.id] * priceOf(o.label), 0);
+            const nameQ = q.listFrom;
+            const list = nameQ ? answersList.map((a) => {
+                const items = q.options.filter((o) => (a[q.id] || {})[o.id] > 0)
+                    .map((o) => `${itemName(o.label)} ${a[q.id][o.id]}${unit}`);
+                if (!items.length) return '';
+                const amt = q.options.reduce((t, o) => t + ((a[q.id] || {})[o.id] || 0) * priceOf(o.label), 0);
+                return `<li><strong>${esc(String(a[nameQ] || '').trim() || '이름 미기재')}</strong> — ${esc(items.join(', '))}${amt ? ` (${won(amt)})` : ''}</li>`;
+            }).filter(Boolean).join('') : '';
+            extra = `${sum ? `<p><strong>합계 ${won(sum)}</strong></p>` : ''}
+                ${list ? `<ul class="comments">${list}</ul>` : ''}
+                ${orders ? `<button type="button" class="small" data-copy="${esc(q.id)}">합계 복사</button>` : ''}`;
+        }
+        return `<div class="result-q"><h3>${esc(q.text)}</h3>${note}${rows}${extra}</div>`;
     }).join('');
     return `<p class="muted">응답 ${total}건</p>${blocks}`;
 }
@@ -231,7 +274,7 @@ async function renderRespond(id) {
                     ${chosen.includes(o.id) ? 'checked' : ''} ${dis}>
                 <span>${esc(o.label)}</span>
             </label>`)).join('');
-        const hint = { multi: '여러 개 선택 가능', count: '해당 없으면 0', single: '' }[q.type];
+        const hint = { multi: '여러 개 선택 가능', count: '필요 없으면 0', single: '' }[q.type];
         return `<div class="card"><fieldset data-q="${esc(q.id)}"><legend>${esc(q.text)}${req}${hint ? `<span class="hint">${hint}</span>` : ''}</legend>${opts}</fieldset></div>`;
     }).join('');
 
@@ -337,6 +380,11 @@ async function renderRespond(id) {
                 });
                 answers[q.id] = picked;
                 if (q.required && !Object.keys(picked).length && !problem) problem = `'${q.text}' 항목에 답해 주세요.`;
+                const cn = q.listFrom && survey.questions.find((x) => x.id === q.listFrom);
+                if (cn && Object.keys(picked).length) {
+                    const el = document.querySelector(`input[name="q_${CSS.escape(cn.id)}"]`);
+                    if (el && !el.value.trim() && !problem) problem = `주문하시려면 '${cn.text}'을(를) 적어 주세요.`;
+                }
                 return;
             }
             const picked = [...document.querySelectorAll(`input[name="q_${CSS.escape(q.id)}"]:checked`)].map((i) => i.value);
@@ -429,6 +477,8 @@ async function renderAdmin() {
             <h2>템플릿으로 시작</h2>
             <div class="actions" style="margin-top:0">
                 <button data-tpl="meal">방학 급식·돌봄 신청</button>
+                <button data-tpl="kimbap">김밥 주문</button>
+                <button data-tpl="tea">차 주문</button>
                 <button data-tpl="schedule">참석 가능 일정 조사</button>
                 <button data-tpl="opinion">의견·찬반 조사</button>
             </div>
@@ -500,7 +550,7 @@ async function renderResultsPage(s) {
 function blankQuestion() {
     return {
         id: 'q' + rid(), text: '', type: 'multi', required: false, optionsText: '', _opts: [],
-        gradesText: '1학년, 2학년, 3학년', listFrom: ''
+        gradesText: '1학년, 2학년, 3학년', listFrom: '', unit: '명'
     };
 }
 
@@ -519,7 +569,7 @@ function datesBetween(from, to, dows) {
 function tq(text, type, required, labels, extra) {
     return {
         id: 'q' + rid(), text, type, required, optionsText: labels.join('\n'), _opts: [],
-        gradesText: '1학년, 2학년, 3학년', listFrom: '', ...extra
+        gradesText: '1학년, 2학년, 3학년', listFrom: '', unit: '명', ...extra
     };
 }
 
@@ -577,8 +627,38 @@ function opinionPreset() {
     };
 }
 
+function kimbapPreset() {
+    const nameId = 'q' + rid();
+    return {
+        title: '얌샘김밥 단체주문',
+        description: '주문하실 메뉴의 개수를 입력하고 성함을 적어 주세요. 주문 내역과 합계가 아래 결과에 모입니다. 요청사항(예: 오이 빼주세요)은 의견란에 남겨 주세요.',
+        showResults: true, allowComment: true, closesAt: null,
+        questions: [
+            tq('메뉴별 수량', 'count', true,
+                ['얌샘김밥(기본) 4,200원', '참치샐러드김밥 5,300원', '더블치즈김밥 4,800원', '어린이계란김밥햄(계란·햄만) 3,000원'],
+                { unit: '개', listFrom: nameId }),
+            tq('성함', 'text', true, [], { id: nameId })
+        ]
+    };
+}
+
+function teaPreset() {
+    const nameId = 'q' + rid();
+    return {
+        title: '차 주문',
+        description: '마실 차의 잔 수를 입력하고 성함을 적어 주세요. 메뉴와 가격은 만들기 화면에서 바꿔 쓸 수 있습니다(이름 끝에 "3,000원"처럼 적으면 금액 합계가 나옵니다).',
+        showResults: true, allowComment: true, closesAt: null,
+        questions: [
+            tq('차 종류별 잔 수', 'count', true, ['따뜻한 차', '차가운 차'], { unit: '잔', listFrom: nameId }),
+            tq('성함', 'text', true, [], { id: nameId })
+        ]
+    };
+}
+
 const TEMPLATES = {
     meal: mealPreset,
+    kimbap: kimbapPreset,
+    tea: teaPreset,
     schedule: schedulePreset,
     opinion: opinionPreset
 };
@@ -594,7 +674,7 @@ function renderEditor(existing, preset) {
             closesAt: existing.closesAt,
             questions: existing.questions.map((q) => ({
                 ...q, optionsText: q.options.map((o) => o.label).join('\n'), _opts: q.options,
-                gradesText: (q.grades || []).join(', '), listFrom: q.listFrom || ''
+                gradesText: (q.grades || []).join(', '), listFrom: q.listFrom || '', unit: q.unit || '명'
             }))
         }
         : preset || {
@@ -634,7 +714,9 @@ function renderEditor(existing, preset) {
                 ` : ''}
                 ${q.type === 'roster' ? `<label class="field"><span>학년 목록 (쉼표로 구분, 비우면 학년 칸 없음)</span>
                     <input type="text" data-f="gradesText" value="${esc(q.gradesText)}" placeholder="1학년, 2학년, 3학년"></label>` : ''}
-                ${q.type === 'multi' && textQs.length ? `<label class="field"><span>선택한 사람의 이름 표시 (선택)</span>
+                ${q.type === 'count' ? `<label class="field"><span>수량 단위 (선택지 이름 끝에 "4,200원"처럼 쓰면 금액 합계가 나옵니다)</span>
+                    <input type="text" data-f="unit" value="${esc(q.unit || '명')}" maxlength="4"></label>` : ''}
+                ${(q.type === 'multi' || q.type === 'count') && textQs.length ? `<label class="field"><span>이름 표시 문항 연결 (선택, 연결하면 지원자·주문자 이름이 결과에 보입니다)</span>
                     <select data-f="listFrom"><option value="">표시 안 함</option>${textQs.map((x) =>
                         `<option value="${esc(x.id)}" ${q.listFrom === x.id ? 'selected' : ''}>${esc(x.text || '(제목 없는 문항)')}</option>`).join('')}</select></label>` : ''}
                 <div class="actions" style="margin-top:0">
@@ -674,6 +756,8 @@ function renderEditor(existing, preset) {
                 if (opt) q.optionsText = opt.value;
                 const gr = box.querySelector('[data-f=gradesText]');
                 if (gr) q.gradesText = gr.value;
+                const un = box.querySelector('[data-f=unit]');
+                if (un) q.unit = un.value;
                 const lf = box.querySelector('[data-f=listFrom]');
                 if (lf) q.listFrom = lf.value;
             });
@@ -724,7 +808,8 @@ function renderEditor(existing, preset) {
                 if (q.type === 'roster') {
                     item.grades = [...new Set((q.gradesText || '').split(',').map((x) => x.trim()).filter(Boolean))];
                 }
-                if (q.type === 'multi' && q.listFrom && draft.questions.some((x) => x.id === q.listFrom && x.type === 'text')) {
+                if (q.type === 'count') item.unit = (q.unit || '').trim() || '명';
+                if ((q.type === 'multi' || q.type === 'count') && q.listFrom && draft.questions.some((x) => x.id === q.listFrom && x.type === 'text')) {
                     item.listFrom = q.listFrom;
                 }
                 questions.push(item);
