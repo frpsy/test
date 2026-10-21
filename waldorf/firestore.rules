@@ -55,5 +55,48 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+
+    // 관리자가 만든 추가 주문판(/test/waldorf/?b=코드). 김밥(위 w_*)과 데이터가 섞이지 않도록 주문판별 하위 경로를 씁니다.
+    function boardClosed(b) {
+      let st = /databases/$(db)/documents/wb/$(b)/settings/state;
+      return exists(st) && get(st).data.closed == true;
+    }
+    function boardPinOk(b, id) {
+      let c = /databases/$(db)/documents/wb/$(b)/claims/$(id + '_' + request.auth.uid);
+      let p = /databases/$(db)/documents/wb/$(b)/pins/$(id);
+      return exists(c) && exists(p) && get(c).data.pin == get(p).data.pin;
+    }
+    match /wb/{b} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+
+      match /orders/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && !boardClosed(b) && validOrder();
+        allow update: if signedIn() && !boardClosed(b) && validOrder()
+          && (resource.data.owner == request.auth.uid || boardPinOk(b, id));
+        allow delete: if isAdmin()
+          || (signedIn() && !boardClosed(b) && (resource.data.owner == request.auth.uid || boardPinOk(b, id)));
+      }
+      match /pins/{id} {
+        allow create: if signedIn() && !exists(/databases/$(db)/documents/wb/$(b)/pins/$(id))
+          && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$')
+          && getAfter(/databases/$(db)/documents/wb/$(b)/orders/$(id)).data.owner == request.auth.uid;
+        allow update: if signedIn()
+          && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$')
+          && getAfter(/databases/$(db)/documents/wb/$(b)/orders/$(id)).data.owner == request.auth.uid
+          && (get(/databases/$(db)/documents/wb/$(b)/orders/$(id)).data.owner == request.auth.uid || boardPinOk(b, id));
+        allow read, delete: if false;
+      }
+      match /claims/{cid} {
+        allow create, update: if signedIn() && cid.matches('^[A-Za-z0-9]+_' + request.auth.uid + '$')
+          && request.resource.data.pin is string;
+        allow read, delete: if false;
+      }
+      match /settings/{d} {
+        allow read: if signedIn();
+        allow write: if isAdmin();
+      }
+    }
   }
 }
