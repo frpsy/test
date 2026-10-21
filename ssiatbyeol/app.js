@@ -477,8 +477,6 @@ async function renderAdmin() {
             <h2>템플릿으로 시작</h2>
             <div class="actions" style="margin-top:0">
                 <button data-tpl="meal">방학 급식·돌봄 신청</button>
-                <button data-tpl="kimbap">김밥 주문</button>
-                <button data-tpl="tea">차 주문</button>
                 <button data-tpl="schedule">참석 가능 일정 조사</button>
                 <button data-tpl="opinion">의견·찬반 조사</button>
             </div>
@@ -627,38 +625,8 @@ function opinionPreset() {
     };
 }
 
-function kimbapPreset() {
-    const nameId = 'q' + rid();
-    return {
-        title: '얌샘김밥 단체주문',
-        description: '주문하실 메뉴의 개수를 입력하고 성함을 적어 주세요. 주문 내역과 합계가 아래 결과에 모입니다. 요청사항(예: 오이 빼주세요)은 의견란에 남겨 주세요.',
-        showResults: true, allowComment: true, closesAt: null,
-        questions: [
-            tq('메뉴별 수량', 'count', true,
-                ['얌샘김밥(기본) 4,200원', '참치샐러드김밥 5,300원', '더블치즈김밥 4,800원', '어린이계란김밥햄(계란·햄만) 3,000원'],
-                { unit: '개', listFrom: nameId }),
-            tq('성함', 'text', true, [], { id: nameId })
-        ]
-    };
-}
-
-function teaPreset() {
-    const nameId = 'q' + rid();
-    return {
-        title: '차 주문',
-        description: '마실 차의 잔 수를 입력하고 성함을 적어 주세요. 메뉴와 가격은 만들기 화면에서 바꿔 쓸 수 있습니다(이름 끝에 "3,000원"처럼 적으면 금액 합계가 나옵니다).',
-        showResults: true, allowComment: true, closesAt: null,
-        questions: [
-            tq('차 종류별 잔 수', 'count', true, ['따뜻한 차', '차가운 차'], { unit: '잔', listFrom: nameId }),
-            tq('성함', 'text', true, [], { id: nameId })
-        ]
-    };
-}
-
 const TEMPLATES = {
     meal: mealPreset,
-    kimbap: kimbapPreset,
-    tea: teaPreset,
     schedule: schedulePreset,
     opinion: opinionPreset
 };
