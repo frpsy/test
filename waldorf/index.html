@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>단체주문</title>
+<meta property="og:title" content="단체주문">
+<meta property="og:description" content="메뉴를 고르고 이름만 적으면 주문 끝! 실시간으로 함께 취합돼요.">
+<meta name="theme-color" content="#f26b1d">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* 레이아웃: 고정 헤더 → 내 주문 → 메뉴 → 주문자 정보 → 전체 현황, 하단 고정 바에 합계와 제출 버튼 */
+:root {
+  --bg: #f6f3ef;
+  --card: #ffffff;
+  --fg: #231a12;
+  --muted: #8b7b6c;
+  --line: #ece3d8;
+  --accent: #f26b1d;
+  --accent-ink: #c4500d;
+  --accent-soft: #fff1e6;
+  --kakao: #fee500;
+  --kakao-ink: #191600;
+  --ok: #1f9d61;
+  --ok-soft: #e6f6ee;
+  --danger: #d4402b;
+  --danger-soft: #fdecea;
+  --shadow: 0 1px 2px rgba(60,35,10,.06), 0 4px 16px rgba(60,35,10,.06);
+  --font: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17120e; --card: #221b15; --fg: #f5ede4; --muted: #b09d8b; --line: #362b22;
+    --accent: #ff8340; --accent-ink: #ffa36e; --accent-soft: #3a2518;
+    --ok: #4fd393; --ok-soft: #173326; --danger: #ff7a66; --danger-soft: #3a1c17;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; letter-spacing: -0.01em; }
+[hidden] { display: none !important; }
+button { font-family: inherit; }
+.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+
+/* 헤더 */
+header { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, #f7822f, #ee5d12); color: #fff; padding-top: env(safe-area-inset-top); box-shadow: 0 2px 12px rgba(238,93,18,.25); }
+header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: 8px; }
+header p { margin: 0; font-size: 12.5px; opacity: .9; }
+.hbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.hbtn:hover { background: rgba(255,255,255,.28); }
+
+main { padding-block: 16px 140px; display: grid; gap: 14px; }
+.card { background: var(--card); border-radius: 20px; padding: 18px; box-shadow: var(--shadow); display: grid; gap: 14px; }
+.card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+h2 svg { color: var(--accent); }
+.pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); white-space: nowrap; }
+.live { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.live.on i { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(31,157,97,.5); } 70% { box-shadow: 0 0 0 7px rgba(31,157,97,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,97,0); } }
+
+/* 알림 띠 */
+.notice { border-radius: 16px; padding: 14px 16px; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+.notice.closed { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+
+/* 내 주문 */
+.mine { border: 2px solid var(--ok); background: var(--ok-soft); }
+.mine .lines { font-size: 14px; color: var(--fg); }
+.mine .amt { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* 메뉴 */
+.menu { display: grid; gap: 10px; }
+.item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); transition: border-color .15s, background .15s; }
+.item.on { border-color: var(--accent); background: var(--accent-soft); }
+.item .nm { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.item .pr { color: var(--accent-ink); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+.item .sub { color: var(--muted); font-weight: 500; font-size: 12.5px; margin-left: 4px; }
+.stepper { display: flex; align-items: center; gap: 4px; flex: none; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 3px; }
+.stepper button { width: 38px; height: 38px; border-radius: 9px; border: 0; background: transparent; color: var(--fg); font-size: 20px; font-weight: 600; cursor: pointer; display: grid; place-items: center; }
+.stepper button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
+.stepper button:disabled { opacity: .3; cursor: default; }
+.stepper b { min-width: 24px; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
+.stepper b.bump { animation: bump .25s; }
+@keyframes bump { 50% { transform: scale(1.35); color: var(--accent); } }
+
+/* 입력 */
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.field label i { color: var(--danger); font-style: normal; }
+.field small { font-size: 12px; color: var(--muted); }
+input[type=text], input[type=password], input[type=tel], textarea { width: 100%; border: 1.5px solid var(--line); background: var(--card); color: var(--fg); border-radius: 12px; padding: 13px 14px; font: 16px var(--font); transition: border-color .15s; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input.bad { border-color: var(--danger); }
+textarea { min-height: 64px; resize: vertical; }
+.pin { letter-spacing: .5em; font-variant-numeric: tabular-nums; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 380px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* 현황 */
+.sum { display: grid; gap: 8px; }
+.sum .r { display: flex; justify-content: space-between; gap: 10px; font-size: 14.5px; }
+.sum .r b { font-variant-numeric: tabular-nums; }
+.sum .r span.won { color: var(--muted); font-size: 13px; font-weight: 500; margin-left: 4px; }
+.sum .r.zero { color: var(--muted); }
+.grand { display: flex; justify-content: space-between; align-items: baseline; background: var(--accent-soft); border-radius: 14px; padding: 14px 16px; font-weight: 800; }
+.grand b { color: var(--accent-ink); font-size: 22px; font-variant-numeric: tabular-nums; }
+.people { display: grid; gap: 0; }
+.person { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.person:first-child { border-top: 0; }
+.ava { grid-row: span 2; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; }
+.person .who { font-weight: 700; overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.person .me { font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--ok); color: #fff; }
+.person .amt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.person .lines { grid-column: 2 / 4; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.person .memo { grid-column: 2 / 4; font-size: 12.5px; color: var(--accent-ink); overflow-wrap: anywhere; }
+.person .del { grid-column: 2 / 4; justify-self: start; }
+.person.new { animation: flash 1.6s; }
+@keyframes flash { 0%, 40% { background: var(--accent-soft); } 100% { background: transparent; } }
+.empty { text-align: center; color: var(--muted); padding: 18px 0 6px; font-size: 14px; }
+
+/* 버튼 */
+.btn { border: 0; border-radius: 14px; padding: 14px 18px; font-size: 16px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform .1s, filter .15s; }
+.btn:active:not(:disabled) { transform: scale(.98); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.kakao { background: var(--kakao); color: var(--kakao-ink); width: 100%; }
+.btn.line { background: transparent; color: var(--fg); border: 1.5px solid var(--line); font-size: 14px; padding: 10px 14px; font-weight: 700; }
+.btn.line.danger { color: var(--danger); }
+.btn.small { font-size: 13px; padding: 7px 12px; border-radius: 10px; white-space: nowrap; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > .btn { flex: 1; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 하단 고정 바 */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.bar .wrap { display: flex; align-items: center; gap: 12px; padding-block: 12px; }
+.bar .info { flex: 1; min-width: 0; }
+.bar .info small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; }
+.bar .info b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bar .btn { flex: none; min-width: 150px; }
+
+/* 시트 */
+.sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(20,12,5,.45); display: grid; align-items: end; justify-items: center; animation: fade .2s; }
+.sheet { width: 100%; max-width: 560px; background: var(--card); border-radius: 22px 22px 0 0; padding: 20px max(18px, env(safe-area-inset-left)) calc(20px + env(safe-area-inset-bottom)); display: grid; gap: 14px; animation: up .25s ease-out; }
+.sheet h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.sheet p { margin: 0; color: var(--muted); font-size: 14px; }
+@media (min-width: 600px) { .sheet-bg { align-items: center; } .sheet { border-radius: 22px; } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes up { from { transform: translateY(30px); opacity: 0; } }
+
+/* 토스트 */
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; background: #231a12; color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); max-width: calc(100% - 32px); text-align: center; animation: up .2s; }
+.toast.err { background: var(--danger); }
+
+/* 관리자 */
+.admin { border: 2px dashed var(--accent); }
+.admin code { font-size: 12px; word-break: break-all; background: var(--accent-soft); padding: 2px 6px; border-radius: 6px; }
+.admin p { margin: 0; font-size: 13px; color: var(--muted); }
+.boards { display: flex; gap: 8px; flex-wrap: wrap; }
+.boards a { padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); color: var(--fg); font-size: 13.5px; font-weight: 700; text-decoration: none; }
+.boards a.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div>
+    <h1><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18M17 21V3c-2 1-3.5 3.5-3.5 7s1.5 4 3.5 4"/></svg><span id="bTitle">단체주문</span></h1>
+    <p id="bDesc">메뉴를 고르고 이름만 적으면 주문 끝!</p>
+  </div>
+  <button class="hbtn" id="openFind" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>내 주문 수정/취소</button>
+</div></header>
+
+<main class="wrap">
+  <nav class="boards" id="boards" hidden aria-label="주문판 선택"></nav>
+  <div class="notice closed" id="closedNotice" hidden></div>
+
+  <section class="card admin" id="adminCard" hidden>
+    <div class="card-h"><h2>관리자</h2><span class="pill">이 기기만 보임</span></div>
+    <label class="switch"><span>주문 마감</span><input type="checkbox" id="closeToggle"></label>
+    <p>이 기기의 관리자 코드: <code id="adminCode">연결 중...</code></p>
+    <p>처음 한 번만: 아래 버튼으로 규칙을 복사해 Firebase 콘솔 → Firestore → 규칙에 통째로 붙여 넣고 게시하세요.</p>
+    <button class="btn line" id="copyRules" type="button">관리자 규칙 복사</button>
+    <hr class="sep">
+    <b id="bfHead">새 주문판 만들기</b>
+    <p>김밥 말고 다른 주문(차, 간식 등)도 받을 수 있어요. 만들면 주소 뒤에 <code>?b=코드</code>가 붙은 전용 링크가 생깁니다.</p>
+    <div class="field"><label for="bfTitle">주문판 이름</label><input type="text" id="bfTitle" maxlength="30" placeholder="예: 차 단체주문"></div>
+    <div class="field"><label for="bfMenu">메뉴 (한 줄에 하나, 이름 뒤에 가격)</label><textarea id="bfMenu" placeholder="따뜻한 차 3000&#10;차가운 차 3500"></textarea></div>
+    <div class="field"><label for="bfUnit">단위</label><input type="text" id="bfUnit" maxlength="4" value="개" placeholder="개, 잔 등"></div>
+    <div class="row"><button class="btn line small" id="bfSave" type="button">주문판 만들기</button><button class="btn line small" id="bfNew" type="button" hidden>새 주문판 만들기로 전환</button></div>
+  </section>
+
+  <section class="card mine" id="mineCard" hidden>
+    <div class="card-h"><h2>내 주문</h2><span class="pill" style="background:var(--ok);color:#fff">접수 완료</span></div>
+    <div class="lines" id="mineLines"></div>
+    <div class="card-h"><span class="amt" id="mineAmt"></span>
+      <div class="row"><button class="btn line small" id="editMine" type="button">수정하기</button><button class="btn line small danger" id="cancelMine" type="button">주문 취소</button></div>
+    </div>
+  </section>
+
+  <section class="card" id="formCard">
+    <div class="card-h"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span id="formTitle">메뉴 선택</span></h2><button class="btn line small" id="stopEdit" type="button" hidden>수정 그만두기</button></div>
+    <div class="menu" id="menu"></div>
+  </section>
+
+  <section class="card" id="infoCard">
+    <h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>주문자 정보</h2>
+    <div class="grid2">
+      <div class="field"><label for="name">성함 <i>*</i></label><input type="text" id="name" placeholder="이름" autocomplete="name" maxlength="20"></div>
+      <div class="field"><label for="pin">비밀번호 4자리 <i id="pinReq">*</i></label><input type="password" id="pin" class="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    </div>
+    <small style="color:var(--muted);font-size:12px;margin-top:-6px" id="pinHelp">다른 기기에서 주문을 수정·취소할 때 필요해요.</small>
+    <div class="field"><label for="memo">요청사항 <span style="font-weight:500">(선택)</span></label><textarea id="memo" placeholder="예: 오이 빼주세요" maxlength="100"></textarea></div>
+  </section>
+
+  <section class="card" id="sumCard">
+    <div class="card-h"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg>전체 주문 현황</h2><span class="live" id="live"><i></i>연결 중</span></div>
+    <div class="sum" id="sumTable"></div>
+    <div class="grand"><span>총 <span id="cnt">0</span>명 · <span id="cntItems">0</span><span id="cntUnit">개</span></span><b id="grand">0원</b></div>
+    <div class="people" id="people"></div>
+    <button class="btn kakao" id="copy" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7l-1 3.6c-.1.3.3.6.6.4l4.2-2.8c.5.1 1 .1 1.5.1 5.5 0 10-3.6 10-8S17.5 3 12 3Z"/></svg>카톡 공유용 요약 복사</button>
+  </section>
+</main>
+
+<div class="bar"><div class="wrap">
+  <div class="info"><small id="barLabel">선택한 메뉴 없음</small><b id="barTotal">0원</b></div>
+  <button class="btn primary" id="submit" type="button" disabled>주문 등록하기</button>
+</div></div>
+
+<div class="sheet-bg" id="findSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="findTitle">
+    <h3 id="findTitle">내 주문 불러오기</h3>
+    <p>주문할 때 입력한 성함과 비밀번호 4자리를 입력하세요.</p>
+    <div class="grid2">
+      <div class="field"><label for="fName">성함</label><input type="text" id="fName" maxlength="20" autocomplete="name"></div>
+      <div class="field"><label for="fPin">비밀번호</label><input type="password" id="fPin" class="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></div>
+    </div>
+    <div class="row"><button class="btn line" id="fClose" type="button">닫기</button><button class="btn primary" id="fGo" type="button">불러오기</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, connectFirestoreEmulator, collection, getDoc, doc, setDoc, deleteDoc, onSnapshot, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDiony5nb0_X70KGcx_gNM7NCK7wAeOsyA",
+  authDomain: "kimbap-order.firebaseapp.com",
+  projectId: "kimbap-order",
+  storageBucket: "kimbap-order.firebasestorage.app",
+  messagingSenderId: "478294235011",
+  appId: "1:478294235011:web:0067157bb0924e7bde88b6",
+};
+// 기본 주문판(김밥). 기존 주문 데이터를 그대로 쓰도록 예전 컬렉션 이름을 유지합니다.
+const KIMBAP = {
+  id: "kimbap", title: "얌샘김밥 단체주문", emoji: "🍙", unit: "개", desc: "메뉴를 고르고 이름만 적으면 주문 끝!",
+  menu: [
+    { id: "basic", name: "얌샘김밥(기본)", price: 4200 },
+    { id: "tuna", name: "참치샐러드김밥", price: 5300 },
+    { id: "cheese", name: "더블치즈김밥", price: 4800 },
+    { id: "kids", name: "어린이계란김밥햄(계란·햄만)", price: 3000 },
+  ],
+};
+// 다른 주문판은 관리자가 화면에서 만들며 wb/{코드} 문서에 저장됩니다(주문·비밀번호·마감은 그 아래 하위 컬렉션).
+const boardId = (new URLSearchParams(location.search).get("b") || "kimbap").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "kimbap";
+const legacy = boardId === "kimbap";
+let board = legacy ? KIMBAP : { id: boardId, title: "", emoji: "🧾", unit: "개", desc: "", menu: [] };
+let MENU = board.menu;
+const P = {
+  orders: () => legacy ? collection(db, "w_orders") : collection(db, "wb", boardId, "orders"),
+  order: id => legacy ? doc(db, "w_orders", id) : doc(db, "wb", boardId, "orders", id),
+  pin: id => legacy ? doc(db, "w_pins", id) : doc(db, "wb", boardId, "pins", id),
+  claim: id => legacy ? doc(db, "w_claims", id) : doc(db, "wb", boardId, "claims", id),
+  state: () => legacy ? doc(db, "w_settings", "state") : doc(db, "wb", boardId, "settings", "state"),
+  def: () => doc(db, "wb", boardId),
+};
+const AVA = ["#f26b1d", "#1f9d61", "#3b7dd8", "#a855c7", "#d4402b", "#c08a00", "#0e9aa7"];
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+if (new URLSearchParams(location.search).has("emu")) {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+}
+
+const $ = id => document.getElementById(id);
+const won = n => n.toLocaleString("ko-KR") + "원";
+const zero = () => Object.fromEntries(MENU.map(m => [m.id, 0]));
+const total = q => MENU.reduce((s, m) => s + m.price * ((q || {})[m.id] || 0), 0);
+const count = q => MENU.reduce((s, m) => s + ((q || {})[m.id] || 0), 0);
+const lines = q => MENU.filter(m => (q || {})[m.id] > 0).map(m => `${m.name} ${q[m.id]}${board.unit}`).join(", ");
+const ms = t => t?.toMillis?.() ?? Date.now();
+
+let missing = false;
+let uid = null, orders = [], closed = false, mine = null, editing = false, busy = false;
+let qty = zero(), seen = new Set(), firstSnap = true;
+
+let adminMode = false;
+try { if (location.hash === "#admin") localStorage.setItem("kimbapAdmin", "1"); adminMode = localStorage.getItem("kimbapAdmin") === "1"; }
+catch (e) { adminMode = location.hash === "#admin"; }
+
+let toastTimer;
+function toast(t, err) {
+  const el = $("toast"); el.textContent = t; el.className = "toast" + (err ? " err" : ""); el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, 2600);
+}
+
+// ---------- 메뉴 ----------
+function renderMenu(bumpId) {
+  const lock = closed || busy || (mine && !editing);
+  $("menu").innerHTML = MENU.map(m => {
+    const q = qty[m.id];
+    return `<div class="item${q ? " on" : ""}"><div class="nm">${m.name}<div class="pr">${won(m.price)}${q ? `<span class="sub">· ${won(q * m.price)}</span>` : ""}</div></div>
+      <div class="stepper"><button type="button" data-id="${m.id}" data-d="-1" aria-label="${m.name} 빼기" ${q === 0 || lock ? "disabled" : ""}>−</button>
+      <b class="${bumpId === m.id ? "bump" : ""}">${q}</b><button type="button" data-id="${m.id}" data-d="1" aria-label="${m.name} 추가" ${lock ? "disabled" : ""}>+</button></div></div>`;
+  }).join("");
+  renderBar();
+}
+$("menu").addEventListener("click", e => {
+  const b = e.target.closest("button[data-id]"); if (!b || b.disabled) return;
+  qty[b.dataset.id] = Math.max(0, qty[b.dataset.id] + Number(b.dataset.d));
+  renderMenu(b.dataset.id);
+});
+
+function renderBar() {
+  const s = $("submit");
+  if (mine && !editing) {
+    $("barLabel").textContent = "내 주문 · " + count(mine.qty) + board.unit;
+    $("barTotal").textContent = won(total(mine.qty));
+    s.textContent = closed ? "주문 마감" : "수정하기"; s.disabled = closed; return;
+  }
+  const n = count(qty), t = total(qty);
+  $("barLabel").textContent = n ? `${n}${board.unit} 선택` : "선택한 메뉴 없음";
+  $("barTotal").textContent = won(t);
+  if (closed) { s.textContent = "주문 마감"; s.disabled = true; return; }
+  s.textContent = editing ? "수정 저장하기" : "주문 등록하기";
+  s.disabled = !uid || busy;
+}
+
+// ---------- 폼 상태 ----------
+function setFormLocked(locked) {
+  ["name", "pin", "memo"].forEach(id => $(id).disabled = locked);
+}
+function syncForm() {
+  $("mineCard").hidden = !mine || editing;
+  if (mine) {
+    $("mineLines").textContent = lines(mine.qty) + (mine.memo ? ` · 요청: ${mine.memo}` : "");
+    $("mineAmt").textContent = won(total(mine.qty));
+  }
+  $("formTitle").textContent = editing ? "주문 수정 중" : "메뉴 선택";
+  $("stopEdit").hidden = !editing;
+  $("pinReq").hidden = editing;
+  $("pinHelp").textContent = editing ? "비밀번호를 바꿀 때만 입력하세요." : "다른 기기에서 주문을 수정·취소할 때 필요해요.";
+  setFormLocked(closed);
+  $("formCard").hidden = $("infoCard").hidden = !!(mine && !editing);
+  $("closedNotice").textContent = missing ? "없는 주문판이에요. 주소를 다시 확인해 주세요." : "주문이 마감되었습니다. 주문 등록과 수정이 닫혀 있어요.";
+  $("closedNotice").hidden = !closed;
+  $("editMine").disabled = $("cancelMine").disabled = closed;
+  renderMenu();
+}
+function startEdit() {
+  if (!mine) return;
+  editing = true;
+  qty = { ...zero(), ...mine.qty };
+  $("name").value = mine.name; $("memo").value = mine.memo || ""; $("pin").value = "";
+  syncForm();
+  $("formCard").scrollIntoView();
+}
+function resetForm() {
+  editing = false; qty = zero(); $("pin").value = ""; $("memo").value = "";
+  syncForm();
+}
+$("editMine").onclick = startEdit;
+$("stopEdit").onclick = () => { resetForm(); if (mine) { $("name").value = mine.name; } };
+
+// ---------- 등록/수정 ----------
+$("submit").addEventListener("click", async () => {
+  if (mine && !editing) { startEdit(); return; }
+  const name = $("name").value.trim(), pin = $("pin").value.trim(), memo = $("memo").value.trim();
+  $("name").classList.toggle("bad", !name);
+  if (count(qty) === 0) { toast("메뉴를 1개 이상 골라 주세요.", true); $("formCard").scrollIntoView(); return; }
+  if (!name) { toast("성함을 입력해 주세요.", true); $("name").focus(); return; }
+  const pinBad = editing ? (pin && !/^\d{4}$/.test(pin)) : !/^\d{4}$/.test(pin);
+  $("pin").classList.toggle("bad", pinBad);
+  if (pinBad) { toast("비밀번호는 숫자 4자리로 입력해 주세요.", true); $("pin").focus(); return; }
+  busy = true; renderBar();
+  try {
+    const data = { owner: uid, name, memo, qty: { ...qty }, amount: total(qty), updatedAt: serverTimestamp() };
+    const b = writeBatch(db);
+    if (editing && mine) {
+      b.set(P.order(mine.id), { ...data, createdAt: mine.createdAt ?? serverTimestamp() });
+      if (pin) b.set(P.pin(mine.id), { pin });
+    } else {
+      const ref = doc(P.orders());
+      b.set(ref, { ...data, createdAt: serverTimestamp() });
+      b.set(P.pin(ref.id), { pin });
+    }
+    const wasEdit = editing;
+    await b.commit();
+    editing = false; qty = zero(); $("pin").value = ""; $("memo").value = "";
+    toast(wasEdit ? "주문을 수정했어요." : "주문이 접수됐어요. 감사합니다!");
+    window.scrollTo({ top: 0 });
+  } catch (e) {
+    toast(closed ? "주문이 마감되어 저장하지 못했어요." : "저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.", true);
+  }
+  busy = false; syncForm();
+});
+
+// ---------- 취소 ----------
+let cancelArmed = 0;
+$("cancelMine").addEventListener("click", async () => {
+  if (Date.now() - cancelArmed > 4000) { cancelArmed = Date.now(); $("cancelMine").textContent = "한 번 더 누르면 취소"; setTimeout(() => $("cancelMine").textContent = "주문 취소", 4000); return; }
+  cancelArmed = 0; $("cancelMine").textContent = "주문 취소";
+  try { await deleteDoc(P.order(mine.id)); toast("주문을 취소했어요."); }
+  catch (e) { toast("취소하지 못했어요. 다시 시도해 주세요.", true); }
+});
+
+// ---------- 다른 기기에서 불러오기 ----------
+function openFind() {
+  if (mine) { $("mineCard").scrollIntoView(); toast("이 기기에서 접수한 주문이 있어요."); return; }
+  $("fName").value = $("name").value; $("fPin").value = "";
+  $("findSheet").hidden = false; setTimeout(() => ($("fName").value ? $("fPin") : $("fName")).focus(), 50);
+}
+$("openFind").onclick = openFind;
+$("fClose").onclick = () => $("findSheet").hidden = true;
+$("findSheet").addEventListener("click", e => { if (e.target.id === "findSheet") $("findSheet").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("findSheet").hidden = true; });
+$("fGo").addEventListener("click", async () => {
+  const name = $("fName").value.trim(), pin = $("fPin").value.trim();
+  if (!name || !/^\d{4}$/.test(pin)) { toast("성함과 비밀번호 4자리를 입력해 주세요.", true); return; }
+  if (closed) { toast("주문이 마감되어 수정할 수 없어요.", true); return; }
+  const cands = orders.filter(o => o.name === name);
+  if (!cands.length) { toast("그 이름으로 접수된 주문이 없어요.", true); return; }
+  $("fGo").disabled = true;
+  let ok = null;
+  for (const o of cands) {
+    try {
+      await setDoc(P.claim(`${o.id}_${uid}`), { pin });
+      const { id, ...rest } = o;
+      await setDoc(P.order(o.id), { ...rest, owner: uid, updatedAt: serverTimestamp() });
+      ok = o; break;
+    } catch (e) { /* 비밀번호 불일치: 다음 후보 */ }
+  }
+  $("fGo").disabled = false;
+  if (!ok) { toast("비밀번호가 맞지 않아요.", true); return; }
+  $("findSheet").hidden = true;
+  toast("주문을 불러왔어요. 수정하거나 취소할 수 있어요.");
+});
+
+// ---------- 현황 ----------
+function renderSummary() {
+  const c = zero(); orders.forEach(o => MENU.forEach(m => c[m.id] += (o.qty || {})[m.id] || 0));
+  $("sumTable").innerHTML = MENU.map(m => `<div class="r${c[m.id] ? "" : " zero"}"><span>${m.name}</span><span><b>${c[m.id]}${board.unit}</b><span class="won">${won(c[m.id] * m.price)}</span></span></div>`).join("");
+  $("cnt").textContent = orders.length;
+  $("cntItems").textContent = count(c);
+  $("grand").textContent = won(orders.reduce((s, o) => s + total(o.qty), 0));
+  const box = $("people"); box.innerHTML = "";
+  if (!orders.length) { box.innerHTML = '<div class="empty">아직 접수된 주문이 없어요. 첫 주문을 남겨 주세요!</div>'; return; }
+  orders.forEach((o, i) => {
+    const d = document.createElement("div"); d.className = "person" + (!firstSnap && !seen.has(o.id) ? " new" : "");
+    d.innerHTML = '<div class="ava"></div><div class="who"></div><div class="amt"></div><div class="lines"></div>';
+    const a = d.querySelector(".ava"); a.textContent = (o.name || "?").slice(0, 1); a.style.background = AVA[i % AVA.length];
+    d.querySelector(".who").textContent = o.name;
+    if (o.owner === uid) d.querySelector(".who").insertAdjacentHTML("beforeend", '<span class="me">나</span>');
+    d.querySelector(".amt").textContent = won(total(o.qty));
+    d.querySelector(".lines").textContent = lines(o.qty);
+    if (o.memo) { const m = document.createElement("div"); m.className = "memo"; m.textContent = "요청: " + o.memo; d.appendChild(m); }
+    if (adminMode) {
+      const del = document.createElement("button"); del.type = "button"; del.className = "btn line small danger del"; del.textContent = "삭제";
+      let armed = 0;
+      del.onclick = async () => {
+        if (Date.now() - armed > 4000) { armed = Date.now(); del.textContent = "한 번 더 누르면 삭제"; return; }
+        try { await deleteDoc(P.order(o.id)); toast(`${o.name} 님 주문을 삭제했어요.`); }
+        catch (e) { toast("삭제 권한이 없어요. 관리자 규칙을 게시했는지 확인해 주세요.", true); del.textContent = "삭제"; armed = 0; }
+      };
+      d.appendChild(del);
+    }
+    box.appendChild(d);
+  });
+  orders.forEach(o => seen.add(o.id));
+}
+
+$("copy").addEventListener("click", async () => {
+  const c = zero(); orders.forEach(o => MENU.forEach(m => c[m.id] += (o.qty || {})[m.id] || 0));
+  const t = `${board.emoji} ${board.title} (${orders.length}명)\n\n` +
+    MENU.filter(m => c[m.id]).map(m => `· ${m.name} ${c[m.id]}${board.unit}`).join("\n") +
+    `\n\n합계 ${won(orders.reduce((s, o) => s + total(o.qty), 0))}\n\n` +
+    orders.map((o, i) => `${i + 1}. ${o.name} - ${lines(o.qty)} (${won(total(o.qty))})${o.memo ? `\n   요청: ${o.memo}` : ""}`).join("\n") +
+    `\n\n주문하기 👉 ${location.origin}${location.pathname}${location.search}`;
+  try { await navigator.clipboard.writeText(t); toast("복사했어요. 카톡에 붙여 넣으세요!"); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("복사했어요. 카톡에 붙여 넣으세요!"); } catch (_) { toast("복사하지 못했어요.", true); }
+    ta.remove();
+  }
+});
+
+// ---------- 관리자 ----------
+$("adminCard").hidden = !adminMode;
+$("copyRules").addEventListener("click", async () => {
+  if (!uid) { toast("아직 연결 중이에요. 잠시 후 다시 눌러 주세요.", true); return; }
+  try {
+    const tpl = await (await fetch("firestore.rules", { cache: "no-store" })).text();
+    await navigator.clipboard.writeText(tpl.replace("__ADMIN__", uid));
+    toast("규칙을 복사했어요. Firebase 규칙 탭에 붙여 넣고 게시하세요.");
+  } catch (e) { toast("복사하지 못했어요.", true); }
+});
+$("closeToggle").addEventListener("change", async e => {
+  const v = e.target.checked;
+  try { await setDoc(P.state(), { closed: v }); toast(v ? "주문을 마감했어요." : "주문을 다시 열었어요."); }
+  catch (err) { e.target.checked = !v; toast("권한이 없어요. 관리자 규칙을 게시했는지 확인해 주세요.", true); }
+});
+
+// ---------- 주문판 ----------
+function applyBoard() {
+  MENU = board.menu;
+  const t = board.title || (missing ? "없는 주문판" : "불러오는 중...");
+  document.title = t; $("bTitle").textContent = t;
+  $("bDesc").textContent = board.desc || "메뉴를 고르고 이름만 적으면 주문 끝!";
+  $("cntUnit").textContent = board.unit;
+  qty = zero(); renderSummary(); syncForm(); fillBoardForm();
+}
+function parseMenu(text, prev) {
+  let n = prev.reduce((a, m) => Math.max(a, Number(String(m.id).replace(/\D/g, "")) || 0), 0);
+  const used = new Set(), out = [];
+  for (const raw of text.split("\n")) {
+    const l = raw.trim(); if (!l) continue;
+    const m = l.match(/^(.*?)[\s:]*([\d,]+)\s*원?$/);
+    const name = m ? m[1].trim() : "";
+    if (!name || name.length > 40) return { err: `"${l}" 줄을 "이름 가격" 형식으로 적어 주세요.` };
+    const old = prev.find(x => x.name === name && !used.has(x.id));
+    const id = old ? old.id : "m" + (++n);
+    used.add(id); out.push({ id, name, price: Number(m[2].replace(/,/g, "")) });
+  }
+  if (!out.length) return { err: "메뉴를 1개 이상 적어 주세요." };
+  if (out.length > 30) return { err: "메뉴는 30개까지 가능해요." };
+  return { menu: out };
+}
+function fillBoardForm() {
+  const editMode = !legacy && !!board.title && !newMode;
+  $("bfHead").textContent = editMode ? "이 주문판 수정" : "새 주문판 만들기";
+  $("bfSave").textContent = editMode ? "수정 저장" : "주문판 만들기";
+  $("bfNew").hidden = legacy || !board.title || newMode;
+  if (editMode) {
+    $("bfTitle").value = board.title; $("bfUnit").value = board.unit;
+    $("bfMenu").value = board.menu.map(m => `${m.name} ${m.price}`).join("\n");
+  }
+}
+let newMode = false;
+$("bfNew").onclick = () => { newMode = true; $("bfTitle").value = $("bfMenu").value = ""; $("bfUnit").value = "개"; fillBoardForm(); };
+$("bfSave").addEventListener("click", async () => {
+  const title = $("bfTitle").value.trim(), unit = $("bfUnit").value.trim() || "개";
+  if (!title) { toast("주문판 이름을 입력해 주세요.", true); $("bfTitle").focus(); return; }
+  const editMode = !legacy && !!board.title && !newMode;
+  const r = parseMenu($("bfMenu").value, editMode ? board.menu : []);
+  if (r.err) { toast(r.err, true); $("bfMenu").focus(); return; }
+  const id = editMode ? boardId : Math.random().toString(36).slice(2, 8);
+  try {
+    await setDoc(doc(db, "wb", id), { title, unit, menu: r.menu, ...(editMode ? {} : { createdAt: serverTimestamp() }) }, { merge: true });
+    if (editMode) { toast("주문판을 수정했어요."); return; }
+    const url = `${location.origin}${location.pathname}?b=${id}`;
+    try { await navigator.clipboard.writeText(url); toast("만들었어요. 링크를 복사했어요!"); } catch (e) { toast("만들었어요. 주소: " + url); }
+    setTimeout(() => { location.href = `?b=${id}`; }, 1200);
+  } catch (e) { toast("권한이 없어요. 관리자 규칙(주문판 포함)을 게시했는지 확인해 주세요.", true); }
+});
+
+function renderBoards(list) {
+  const all = [{ id: "kimbap", title: KIMBAP.title }, ...list];
+  $("boards").hidden = all.length < 2;
+  $("boards").innerHTML = all.map(b => `<a href="?b=${b.id}${adminMode ? "#admin" : ""}" class="${b.id === boardId ? "on" : ""}"></a>`).join("");
+  $("boards").querySelectorAll("a").forEach((a, i) => a.textContent = all[i].title);
+}
+
+// ---------- 시작 ----------
+applyBoard();
+let started = false;
+onAuthStateChanged(auth, user => {
+  if (!user || started) return;
+  started = true; uid = user.uid; $("adminCode").textContent = uid;
+  onSnapshot(P.orders(), snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.createdAt) - ms(b.createdAt));
+    const prev = mine;
+    mine = orders.find(o => o.owner === uid) || null;
+    if (!mine && editing) { editing = false; qty = zero(); }
+    if (mine && !prev && !$("name").value) $("name").value = mine.name;
+    $("live").className = "live on"; $("live").lastChild.textContent = "실시간";
+    renderSummary(); syncForm(); firstSnap = false;
+  }, () => { $("live").className = "live"; $("live").lastChild.textContent = "연결 끊김"; toast("주문 목록을 불러오지 못했어요. 새로고침해 주세요.", true); });
+  if (!legacy) onSnapshot(P.def(), s => {
+    missing = !s.exists();
+    board = missing ? { ...board, title: "", menu: [] } : { id: boardId, emoji: "🧾", desc: "", unit: "개", ...s.data() };
+    if (missing) closed = true;
+    applyBoard();
+  }, () => toast("주문판을 불러오지 못했어요. 새로고침해 주세요.", true));
+  onSnapshot(collection(db, "wb"), snap => {
+    renderBoards(snap.docs.map(d => ({ id: d.id, title: d.data().title || d.id, t: ms(d.data().createdAt) })).sort((a, b) => a.t - b.t));
+  }, () => {});
+  onSnapshot(P.state(), s => {
+    closed = missing || !!(s.exists() && s.data().closed);
+    $("closeToggle").checked = closed;
+    if (closed && editing) { editing = false; qty = zero(); }
+    syncForm();
+  }, () => {});
+  renderBar();
+});
+signInAnonymously(auth).catch(() => toast("연결하지 못했어요. 새로고침해 주세요.", true));
+</script>
+</body>
+</html>
