@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>얌샘김밥 단체주문</title>
+<meta property="og:title" content="얌샘김밥 단체주문">
+<meta property="og:description" content="메뉴를 선택하고 주문을 등록해 주세요!">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* 레이아웃: 주황 헤더 아래 탭(주문하기 / 취합 현황), 모바일 한 열 카드 */
+:root {
+  --bg: #fffaf4;
+  --card: #ffffff;
+  --fg: #2b2118;
+  --muted: #8a7766;
+  --line: #f0e2cf;
+  --accent: #e87b35;
+  --accent-ink: #b8531a;
+  --accent-soft: #fdf0e3;
+  --danger: #c0392b;
+  --ok: #2f8f5b;
+  --font: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1713; --card: #271f19; --fg: #f4ebe1; --muted: #b3a08d; --line: #3d3128;
+    --accent: #f08c4a; --accent-ink: #ffb07a; --accent-soft: #3a2a1e; --danger: #ff8070; --ok: #6fd09a;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; margin: 0; }
+[hidden] { display: none !important; }
+.band { background: #e87b35; color: #fff; padding-top: env(safe-area-inset-top, 0px); }
+.inner { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header .inner { padding-block: 20px; }
+h1 { margin: 0; font-size: 22px; font-weight: 900; }
+header p { margin: 2px 0 0; font-size: 13px; opacity: .92; }
+main { padding-block: 16px 40px; display: grid; gap: 16px; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--accent-soft); padding: 5px; border-radius: 12px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); font: 700 14px var(--font); padding: 10px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--card); color: var(--accent-ink); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.view { display: grid; gap: 16px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 12px; }
+.panel.warm { background: var(--accent-soft); }
+h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.item .nm { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.item .pr { color: var(--accent-ink); font-weight: 700; font-size: 14px; }
+.stepper { display: flex; align-items: center; gap: 12px; flex: none; }
+.stepper button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 700 18px var(--font); cursor: pointer; }
+.stepper b { min-width: 18px; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
+.total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--line); padding-top: 12px; font-weight: 700; }
+.total span:last-child { color: var(--accent-ink); font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
+label { font-size: 13px; color: var(--muted); font-weight: 500; display: block; margin-bottom: 4px; }
+label i { color: var(--danger); font-style: normal; }
+input[type=text], textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 10px; padding: 12px; font: 16px var(--font); }
+textarea { min-height: 70px; resize: vertical; }
+input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.primary { background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 14px; font: 700 16px var(--font); cursor: pointer; width: 100%; }
+.primary:disabled { opacity: .5; cursor: not-allowed; }
+.ghost { background: transparent; color: var(--accent-ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 500 14px var(--font); cursor: pointer; }
+.ghost.danger { color: var(--danger); }
+.msg { font-size: 14px; min-height: 20px; }
+.msg.ok { color: var(--ok); } .msg.err { color: var(--danger); }
+.banner { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; display: grid; gap: 8px; }
+.sum { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.sum .h { font-size: 12px; color: var(--muted); }
+.sum .r { text-align: right; }
+.person { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 2px; }
+.person:first-child { border-top: 0; padding-top: 0; }
+.person .top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.person .top b { overflow-wrap: anywhere; }
+.person .items, .person .memo { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+#people { display: grid; gap: 10px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.empty { color: var(--muted); font-size: 14px; text-align: center; padding: 12px 0; }
+.note { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.note code { color: var(--fg); font-size: 12px; }
+.person .ghost.danger { justify-self: start; margin-top: 6px; padding: 6px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header class="band"><div class="inner">
+  <h1>얌샘김밥 단체주문</h1><p>메뉴를 선택하고 주문을 등록해 주세요!</p>
+</div></header>
+
+<main class="inner">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabOrder" aria-selected="true" type="button">주문하기</button>
+    <button role="tab" id="tabSum" aria-selected="false" type="button">취합 현황 <span id="cnt"></span></button>
+  </div>
+
+  <section class="view" id="orderView">
+    <div class="banner" id="mineBanner" hidden>
+      <div><b>이미 주문하셨습니다.</b> 아래에서 수정 후 저장하거나 주문을 취소할 수 있습니다.</div>
+      <div class="row"><button class="ghost danger" id="cancel" type="button">주문 취소</button></div>
+    </div>
+    <div class="panel warm">
+      <h2>메뉴 선택</h2>
+      <div id="menu" style="display:grid;gap:10px"></div>
+      <div class="total"><span>내 선택 금액</span><span id="mine">0원</span></div>
+    </div>
+    <div class="panel">
+      <h2>주문자 정보 입력</h2>
+      <div><label for="name">성함 <i>*</i></label><input type="text" id="name" placeholder="이름을 입력하세요" autocomplete="name" maxlength="20"></div>
+      <div><label for="memo">요청사항 (선택)</label><textarea id="memo" placeholder="예: 오이 빼주세요" maxlength="100"></textarea></div>
+      <div class="msg" id="msg" role="status">연결 중입니다...</div>
+      <button class="primary" id="submit" type="button" disabled>주문 등록하기</button>
+    </div>
+  </section>
+
+  <section class="view" id="sumView" hidden>
+    <div class="panel" id="adminPanel" hidden>
+      <h2>관리자 모드</h2>
+      <div class="note">이 기기의 관리자 코드: <code id="adminCode">연결 중...</code></div>
+      <div class="note">처음 한 번만: 아래 버튼으로 규칙을 복사해 Firebase 콘솔 → Firestore → 규칙에 통째로 붙여 넣고 게시하세요. 그 뒤 이 기기에서 주문 옆 삭제 버튼이 동작합니다.</div>
+      <div class="row"><button class="ghost" id="copyRules" type="button">관리자 규칙 복사</button></div>
+      <div class="msg" id="adminMsg" role="status"></div>
+    </div>
+    <div class="panel warm">
+      <h2>메뉴별 수량</h2>
+      <div class="sum" id="sumTable"></div>
+      <div class="total"><span>전체 합계</span><span id="grand">0원</span></div>
+      <div class="row"><button class="ghost" id="copy" type="button">취합 내용 복사</button></div>
+    </div>
+    <div class="panel">
+      <h2>주문자별 내역</h2>
+      <div id="people"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDiony5nb0_X70KGcx_gNM7NCK7wAeOsyA",
+  authDomain: "kimbap-order.firebaseapp.com",
+  projectId: "kimbap-order",
+  storageBucket: "kimbap-order.firebasestorage.app",
+  messagingSenderId: "478294235011",
+  appId: "1:478294235011:web:0067157bb0924e7bde88b6",
+};
+
+const MENU = [
+  { id: "basic", name: "얌샘김밥(기본)", price: 4200 },
+  { id: "tuna", name: "참치샐러드김밥", price: 5300 },
+  { id: "cheese", name: "더블치즈김밥", price: 4800 },
+  { id: "kids", name: "어린이계란김밥햄(계란·햄만)", price: 3000 },
+];
+const won = n => n.toLocaleString("ko-KR") + "원";
+const $ = id => document.getElementById(id);
+const zero = () => Object.fromEntries(MENU.map(m => [m.id, 0]));
+const total = q => MENU.reduce((s, m) => s + m.price * (q[m.id] || 0), 0);
+const lines = q => MENU.filter(m => q[m.id] > 0).map(m => m.name + " x" + q[m.id]).join(", ");
+
+let qty = zero();
+let orders = [];
+let uid = null, myOrder = null, dirty = false;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+function setMsg(t, cls) { const m = $("msg"); m.textContent = t; m.className = "msg " + (cls || ""); }
+
+function renderMenu() {
+  $("menu").innerHTML = MENU.map(m => `
+    <div class="item"><div class="nm">${m.name}<div class="pr">${won(m.price)}</div></div>
+    <div class="stepper"><button type="button" data-id="${m.id}" data-d="-1" aria-label="${m.name} 빼기">-</button>
+    <b>${qty[m.id]}</b><button type="button" data-id="${m.id}" data-d="1" aria-label="${m.name} 추가">+</button></div></div>`).join("");
+  $("mine").textContent = won(total(qty));
+}
+$("menu").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  qty[b.dataset.id] = Math.max(0, qty[b.dataset.id] + Number(b.dataset.d));
+  dirty = true; renderMenu();
+});
+$("name").addEventListener("input", () => dirty = true);
+$("memo").addEventListener("input", () => dirty = true);
+
+function loadMine() {
+  $("mineBanner").hidden = !myOrder;
+  $("submit").textContent = myOrder ? "수정 내용 저장하기" : "주문 등록하기";
+  if (myOrder && !dirty) {
+    qty = { ...zero(), ...myOrder.qty };
+    $("name").value = myOrder.name || "";
+    $("memo").value = myOrder.memo || "";
+    renderMenu();
+  }
+}
+
+$("submit").addEventListener("click", async () => {
+  const name = $("name").value.trim();
+  if (!name) { setMsg("성함을 입력해 주세요.", "err"); $("name").focus(); return; }
+  if (total(qty) === 0) { setMsg("메뉴를 1개 이상 선택해 주세요.", "err"); return; }
+  if (!uid) { setMsg("아직 연결되지 않았습니다. 잠시 후 다시 눌러 주세요.", "err"); return; }
+  $("submit").disabled = true;
+  const was = !!myOrder;
+  try {
+    await setDoc(doc(db, "orders", uid), { name, memo: $("memo").value.trim(), qty: { ...qty }, amount: total(qty), updatedAt: serverTimestamp() });
+    dirty = false;
+    setMsg(was ? "주문이 수정되었습니다." : "주문이 등록되었습니다. 감사합니다!", "ok");
+  } catch (e) {
+    setMsg("저장에 실패했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.", "err");
+  }
+  $("submit").disabled = false;
+});
+
+let cancelArmed = false;
+$("cancel").addEventListener("click", async () => {
+  if (!cancelArmed) { cancelArmed = true; $("cancel").textContent = "정말 취소할까요? 한 번 더 누르세요"; return; }
+  cancelArmed = false; $("cancel").textContent = "주문 취소";
+  try {
+    await deleteDoc(doc(db, "orders", uid));
+    qty = zero(); $("memo").value = ""; dirty = false; renderMenu();
+    setMsg("주문이 취소되었습니다.", "ok");
+  } catch (e) { setMsg("취소에 실패했습니다. 다시 시도해 주세요.", "err"); }
+});
+
+function counts() {
+  const c = zero();
+  orders.forEach(o => MENU.forEach(m => c[m.id] += (o.qty && o.qty[m.id]) || 0));
+  return c;
+}
+const grand = () => orders.reduce((s, o) => s + total(o.qty || {}), 0);
+
+function renderSummary() {
+  $("cnt").textContent = orders.length ? "(" + orders.length + ")" : "";
+  const c = counts();
+  $("sumTable").innerHTML = `<span class="h">메뉴</span><span class="h r">수량</span><span class="h r">금액</span>` +
+    MENU.map(m => `<span>${m.name}</span><b class="r">${c[m.id]}</b><span class="r">${won(c[m.id] * m.price)}</span>`).join("");
+  $("grand").textContent = won(grand());
+  const box = $("people");
+  box.innerHTML = "";
+  if (!orders.length) { box.innerHTML = `<div class="empty">아직 등록된 주문이 없습니다.</div>`; return; }
+  orders.forEach(o => {
+    const d = document.createElement("div"); d.className = "person";
+    d.innerHTML = '<div class="top"><b></b><span></span></div><div class="items"></div>';
+    d.querySelector("b").textContent = o.name + (o.id === uid ? " (나)" : "");
+    d.querySelector("span").textContent = won(total(o.qty || {}));
+    d.querySelector(".items").textContent = lines(o.qty || {});
+    if (o.memo) { const m = document.createElement("div"); m.className = "memo"; m.textContent = "요청: " + o.memo; d.appendChild(m); }
+    if (adminMode) {
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "ghost danger"; del.textContent = "삭제";
+      del.onclick = async () => {
+        if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "정말 삭제할까요? 한 번 더 누르세요"; return; }
+        try { await deleteDoc(doc(db, "orders", o.id)); setAdminMsg(o.name + " 님의 주문을 삭제했습니다.", "ok"); }
+        catch (e) { setAdminMsg("삭제 권한이 없습니다. 위의 관리자 규칙을 Firebase에 게시했는지 확인해 주세요.", "err"); del.dataset.sure = ""; del.textContent = "삭제"; }
+      };
+      d.appendChild(del);
+    }
+    box.appendChild(d);
+  });
+}
+
+$("copy").addEventListener("click", async () => {
+  const c = counts();
+  const t = "[얌샘김밥 단체주문]\n" + MENU.filter(m => c[m.id]).map(m => `${m.name} ${c[m.id]}개`).join("\n") +
+    `\n합계 ${won(grand())}\n\n` +
+    orders.map(o => `${o.name}: ${lines(o.qty || {})} (${won(total(o.qty || {}))})${o.memo ? " / " + o.memo : ""}`).join("\n");
+  try { await navigator.clipboard.writeText(t); $("copy").textContent = "복사되었습니다"; }
+  catch (e) { $("copy").textContent = "복사에 실패했습니다"; }
+  setTimeout(() => $("copy").textContent = "취합 내용 복사", 1800);
+});
+
+function tab(which) {
+  const s = which === "sum";
+  $("orderView").hidden = s; $("sumView").hidden = !s;
+  $("tabOrder").setAttribute("aria-selected", String(!s));
+  $("tabSum").setAttribute("aria-selected", String(s));
+}
+$("tabOrder").onclick = () => tab("order");
+$("tabSum").onclick = () => tab("sum");
+
+// 관리자 모드: 주소 끝에 #admin 을 붙여 한 번 열면 이 기기에서 계속 켜짐
+let adminMode = false;
+try {
+  if (location.hash === "#admin") localStorage.setItem("kimbapAdmin", "1");
+  adminMode = localStorage.getItem("kimbapAdmin") === "1";
+} catch (e) { adminMode = location.hash === "#admin"; }
+$("adminPanel").hidden = !adminMode;
+function setAdminMsg(t, cls) { const m = $("adminMsg"); m.textContent = t; m.className = "msg " + (cls || ""); }
+const rulesText = id => `rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /orders/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid in ['${id}'];
+    }
+  }
+}`;
+$("copyRules").addEventListener("click", async () => {
+  if (!uid) { setAdminMsg("아직 연결되지 않았습니다. 잠시 후 다시 눌러 주세요.", "err"); return; }
+  try { await navigator.clipboard.writeText(rulesText(uid)); setAdminMsg("규칙이 복사되었습니다. Firebase 규칙 탭에 붙여 넣고 게시하세요.", "ok"); }
+  catch (e) { setAdminMsg("복사에 실패했습니다.", "err"); }
+});
+if (adminMode && location.hash === "#admin") tab("sum");
+
+renderMenu(); renderSummary();
+
+let started = false;
+onAuthStateChanged(auth, user => {
+  if (!user || started) return;
+  started = true; uid = user.uid;
+  $("adminCode").textContent = uid;
+  setMsg(""); $("submit").disabled = false;
+  onSnapshot(collection(db, "orders"), snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.updatedAt?.toMillis?.() ?? Infinity) - (b.updatedAt?.toMillis?.() ?? Infinity));
+    myOrder = orders.find(o => o.id === uid) || null;
+    loadMine(); renderSummary();
+  }, () => setMsg("주문 목록을 불러오지 못했습니다. 새로고침해 주세요.", "err"));
+});
+signInAnonymously(auth).catch(() => setMsg("연결에 실패했습니다. 새로고침해 주세요.", "err"));
+</script>
+</body>
+</html>
