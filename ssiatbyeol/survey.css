@@ -160,3 +160,11 @@ details.helper summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 
 .opt .num { width: 84px; margin-left: auto; text-align: center; flex: none; }
 .opt:has(.num) { cursor: default; justify-content: space-between; }
+
+.kid { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 0 0 10px; }
+.kid .row { margin-bottom: 8px; }
+.kid-days { margin: 0 0 8px; }
+.roster-day { margin: 0 0 14px; }
+.roster-day h4 { margin: 0 0 4px; font-size: 1rem; }
+.roster-line { margin: 0 0 4px; font-size: .94rem; }
+.names { margin: 4px 0 0; font-size: .88rem; }

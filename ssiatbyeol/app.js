@@ -60,9 +60,80 @@ function demoBanner() {
 }
 
 /* ---------- 결과 ---------- */
+const UNKNOWN_GRADE = '학년 미기재';
+
+// 날짜(선택지)별로 학년별 이름을 모은다. 같은 이름은 한 번만 센다.
+function rosterByOption(q, answersList) {
+    const grades = q.grades && q.grades.length ? q.grades : [''];
+    const byOpt = Object.fromEntries(q.options.map((o) => [o.id, new Map(grades.map((g) => [g, new Set()]))]));
+    answersList.forEach((a) => (Array.isArray(a[q.id]) ? a[q.id] : []).forEach((c) => {
+        const name = String((c && c.n) || '').trim();
+        if (!name) return;
+        const g = grades.includes(c.g) ? c.g : UNKNOWN_GRADE;
+        (c.d || []).forEach((oid) => {
+            const m = byOpt[oid];
+            if (!m) return;
+            if (!m.has(g)) m.set(g, new Set());
+            m.get(g).add(name);
+        });
+    }));
+    return byOpt;
+}
+
+const rosterCount = (m) => [...m.values()].reduce((n, set) => n + set.size, 0);
+
+// 채팅방에 그대로 붙여 넣는 형식 (기존 릴레이 명단과 같은 모양)
+function rosterText(q, answersList) {
+    const byOpt = rosterByOption(q, answersList);
+    return q.options.map((o) => {
+        const m = byOpt[o.id];
+        const lines = [`✅${o.label} ${rosterCount(m)}명`];
+        m.forEach((names, g) => {
+            if (!names.size) return;
+            if (g) lines.push(g);
+            lines.push([...names].join(' '));
+            lines.push('');
+        });
+        return lines.join('\n').trim();
+    }).join('\n\n');
+}
+
+function bindCopy(box, survey, list) {
+    box.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.onclick = async () => {
+            const q = survey.questions.find((x) => x.id === btn.dataset.copy);
+            const text = rosterText(q, list);
+            try {
+                await navigator.clipboard.writeText(text);
+                toast('명단을 복사했습니다.');
+            } catch {
+                window.prompt('아래 내용을 복사해 주세요.', text);
+            }
+        };
+    });
+}
+
 function resultsHtml(survey, answersList) {
     const total = answersList.length;
+    const referenced = new Set(survey.questions.map((q) => q.listFrom).filter(Boolean));
     const blocks = survey.questions.map((q) => {
+        if (q.type === 'roster') {
+            const byOpt = rosterByOption(q, answersList);
+            const days = q.options.map((o) => {
+                const m = byOpt[o.id];
+                const rows = [...m.entries()].filter(([, set]) => set.size).map(([g, set]) =>
+                    `<p class="roster-line">${g ? `<strong>${esc(g)}</strong> ` : ''}${[...set].map(esc).join(', ')}</p>`).join('');
+                return `<div class="roster-day"><h4>${esc(o.label)} <span class="muted">${rosterCount(m)}명</span></h4>${rows || '<p class="muted roster-line">신청 없음</p>'}</div>`;
+            }).join('');
+            return `<div class="result-q"><h3>${esc(q.text)}</h3>${days}
+                <button type="button" class="small" data-copy="${esc(q.id)}">채팅방용 명단 복사</button></div>`;
+        }
+        if (q.type === 'text') {
+            if (referenced.has(q.id)) return '';
+            const texts = answersList.map((a) => String(a[q.id] || '').trim()).filter(Boolean);
+            return `<div class="result-q"><h3>${esc(q.text)}</h3>${texts.length
+                ? `<ul class="comments">${texts.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">없음</p>'}</div>`;
+        }
         const sums = Object.fromEntries(q.options.map((o) => [o.id, 0]));
         let families = 0;
         answersList.forEach((a) => {
@@ -83,9 +154,14 @@ function resultsHtml(survey, answersList) {
                 ? Math.round((sums[o.id] / max) * 100)
                 : (total ? Math.round((sums[o.id] / total) * 100) : 0);
             const label = q.type === 'count' ? `${sums[o.id]}명` : `${sums[o.id]}명 (${pct}%)`;
+            const who = q.listFrom
+                ? answersList.filter((a) => (a[q.id] || []).includes(o.id))
+                    .map((a) => String(a[q.listFrom] || '').trim() || '가정 미기재')
+                : [];
             return `<div class="bar-row">
                 <div class="bar-label"><span>${esc(o.label)}</span><span>${label}</span></div>
                 <div class="bar" aria-hidden="true"><span style="width:${pct}%"></span></div>
+                ${who.length ? `<p class="muted names">${who.map(esc).join(', ')}</p>` : ''}
             </div>`;
         }).join('');
         const note = q.type === 'count' ? `<p class="muted" style="margin:0 0 8px">${families}가정 응답</p>` : '';
@@ -95,6 +171,25 @@ function resultsHtml(survey, answersList) {
 }
 
 /* ---------- 응답 화면 ---------- */
+function kidHtml(q, kid, closed) {
+    const grades = q.grades || [];
+    const dis = closed ? 'disabled' : '';
+    const gradeSel = grades.length
+        ? `<select class="kid-grade" aria-label="학년" ${dis}>${grades.map((g) =>
+            `<option value="${esc(g)}" ${kid.g === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>`
+        : '';
+    const days = q.options.map((o) => `<label class="check"><input type="checkbox" class="kid-day" value="${esc(o.id)}"
+        ${(kid.d || []).includes(o.id) ? 'checked' : ''} ${dis}> ${esc(o.label)}</label>`).join('');
+    return `<div class="kid">
+        <div class="row">
+            <input type="text" class="kid-name" maxlength="20" placeholder="아이 이름" aria-label="아이 이름" value="${esc(kid.n || '')}" ${dis}>
+            ${gradeSel}
+        </div>
+        <div class="dows kid-days">${days}</div>
+        ${closed ? '' : '<button type="button" class="small danger" data-rmkid>이 아이 빼기</button>'}
+    </div>`;
+}
+
 async function renderRespond(id) {
     const survey = await be.getSurvey(id);
     if (!survey) {
@@ -106,35 +201,55 @@ async function renderRespond(id) {
     const mine = await be.getMyAnswers(id).catch(() => null);
     const myComment = survey.allowComment ? await be.getMyComment(id).catch(() => '') : '';
     const canSeeResults = survey.showResults || be.user().isAdmin;
+    const hasNames = survey.questions.some((q) => q.type === 'roster' || q.type === 'text');
 
     const questions = survey.questions.map((q) => {
+        const req = q.required ? '<span class="req" aria-label="필수">*</span>' : '';
+        const dis = closed ? 'disabled' : '';
+        if (q.type === 'roster') {
+            const saved = mine && Array.isArray(mine[q.id]) ? mine[q.id] : [];
+            const kids = saved.length ? saved : [{ n: '', g: (q.grades || [])[0] || '', d: [] }];
+            return `<div class="card"><fieldset data-roster="${esc(q.id)}">
+                <legend>${esc(q.text)}${req}<span class="hint">아이 이름을 적고 필요한 요일을 선택해 주세요</span></legend>
+                <div class="kids">${kids.map((k) => kidHtml(q, k, closed)).join('')}</div>
+                ${closed ? '' : '<button type="button" class="small" data-addkid>아이 추가</button>'}
+            </fieldset></div>`;
+        }
+        if (q.type === 'text') {
+            return `<div class="card"><fieldset><legend>${esc(q.text)}${req}</legend>
+                <input type="text" name="q_${esc(q.id)}" maxlength="40" value="${esc((mine && mine[q.id]) || '')}" ${dis}></fieldset></div>`;
+        }
         const chosen = (mine && mine[q.id]) || (q.type === 'count' ? {} : []);
         const opts = q.options.map((o) => (q.type === 'count' ? `
             <label class="opt">
                 <span>${esc(o.label)}</span>
                 <input type="number" class="num" min="0" max="20" step="1" inputmode="numeric"
-                    name="q_${esc(q.id)}" data-opt="${esc(o.id)}" value="${chosen[o.id] || 0}" ${closed ? 'disabled' : ''}>
+                    name="q_${esc(q.id)}" data-opt="${esc(o.id)}" value="${chosen[o.id] || 0}" ${dis}>
             </label>` : `
             <label class="opt">
                 <input type="${q.type === 'multi' ? 'checkbox' : 'radio'}" name="q_${esc(q.id)}" value="${esc(o.id)}"
-                    ${chosen.includes(o.id) ? 'checked' : ''} ${closed ? 'disabled' : ''}>
+                    ${chosen.includes(o.id) ? 'checked' : ''} ${dis}>
                 <span>${esc(o.label)}</span>
             </label>`)).join('');
         const hint = { multi: '여러 개 선택 가능', count: '해당 없으면 0', single: '' }[q.type];
-        const req = q.required ? '<span class="req" aria-label="필수">*</span>' : '';
         return `<div class="card"><fieldset data-q="${esc(q.id)}"><legend>${esc(q.text)}${req}${hint ? `<span class="hint">${hint}</span>` : ''}</legend>${opts}</fieldset></div>`;
     }).join('');
 
     const closeNote = closed
         ? '<p class="banner">마감된 조사입니다. 답변을 바꿀 수 없습니다.</p>'
         : (survey.closesAt ? `<p class="muted">마감: ${fmtDateTime(survey.closesAt)}</p>` : '');
+    const privacy = hasNames
+        ? (survey.showResults
+            ? '입력하신 이름은 결과 화면에서 이 링크를 아는 분들께 보입니다.'
+            : '입력하신 이름은 관리자만 볼 수 있습니다.')
+        : '이름과 연락처를 받지 않습니다.';
 
     app.innerHTML = `
         ${demoBanner()}
-        <p class="eyebrow">씨앗별 학부모 조사 · 익명</p>
+        <p class="eyebrow">씨앗별 학부모 조사</p>
         <h1>${esc(survey.title)}</h1>
         ${survey.description ? `<p class="muted" style="white-space:pre-wrap">${esc(survey.description)}</p>` : ''}
-        <p class="muted">이름과 연락처를 받지 않습니다. 같은 기기에서는 답변을 다시 열어 고칠 수 있습니다.</p>
+        <p class="muted">${privacy} 같은 기기에서는 답변을 다시 열어 고칠 수 있습니다.</p>
         ${closeNote}
         <form id="respond" novalidate>
             ${questions}
@@ -144,6 +259,27 @@ async function renderRespond(id) {
             ${closed ? '' : `<div class="actions"><button type="submit" class="primary">${mine ? '답변 수정하기' : '제출하기'}</button></div>`}
         </form>
         <section id="results" class="card" ${mine || closed ? '' : 'hidden'} style="margin-top:20px"></section>`;
+
+    app.querySelectorAll('[data-roster]').forEach((fs) => {
+        const q = survey.questions.find((x) => x.id === fs.dataset.roster);
+        const wrap = fs.querySelector('.kids');
+        const add = fs.querySelector('[data-addkid]');
+        if (add) {
+            add.onclick = () => wrap.insertAdjacentHTML('beforeend',
+                kidHtml(q, { n: '', g: (q.grades || [])[0] || '', d: [] }, false));
+        }
+        wrap.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-rmkid]');
+            if (!btn) return;
+            const kid = btn.closest('.kid');
+            if (wrap.children.length > 1) {
+                kid.remove();
+            } else {
+                kid.querySelector('.kid-name').value = '';
+                kid.querySelectorAll('.kid-day').forEach((c) => { c.checked = false; });
+            }
+        });
+    });
 
     const resultsBox = document.getElementById('results');
     const showResults = async () => {
@@ -158,6 +294,7 @@ async function renderRespond(id) {
                 <div class="actions"><button type="button" class="small" id="refresh">새로고침</button></div>`;
             resultsBox.hidden = false;
             document.getElementById('refresh').onclick = showResults;
+            bindCopy(resultsBox, survey, list);
         } catch (e) {
             resultsBox.innerHTML = `<p>${esc(errMsg(e))}</p>`;
             resultsBox.hidden = false;
@@ -168,26 +305,53 @@ async function renderRespond(id) {
     document.getElementById('respond').addEventListener('submit', async (ev) => {
         ev.preventDefault();
         const answers = {};
-        let missing = null;
+        let problem = '';
         survey.questions.forEach((q) => {
-            let picked;
+            if (q.type === 'roster') {
+                const kids = [];
+                document.querySelectorAll(`[data-roster="${CSS.escape(q.id)}"] .kid`).forEach((k) => {
+                    const n = k.querySelector('.kid-name').value.trim();
+                    const gSel = k.querySelector('.kid-grade');
+                    const d = [...k.querySelectorAll('.kid-day:checked')].map((i) => i.value);
+                    if (!n && !d.length) return;
+                    if (!n && !problem) problem = '요일을 선택한 아이의 이름을 입력해 주세요.';
+                    else if (!d.length && !problem) problem = `${n}: 필요한 요일을 선택해 주세요.`;
+                    else if (n && d.length) kids.push({ n, g: gSel ? gSel.value : '', d });
+                });
+                answers[q.id] = kids;
+                if (q.required && !kids.length && !problem) problem = `'${q.text}' 항목에 답해 주세요.`;
+                return;
+            }
+            if (q.type === 'text') {
+                const el = document.querySelector(`input[name="q_${CSS.escape(q.id)}"]`);
+                const v = el ? el.value.trim().slice(0, 40) : '';
+                answers[q.id] = v;
+                if (q.required && !v && !problem) problem = `'${q.text}' 항목에 답해 주세요.`;
+                return;
+            }
             if (q.type === 'count') {
-                picked = {};
+                const picked = {};
                 document.querySelectorAll(`input[name="q_${CSS.escape(q.id)}"]`).forEach((i) => {
                     const n = Math.min(20, Math.max(0, Math.floor(Number(i.value) || 0)));
                     if (n > 0) picked[i.dataset.opt] = n;
                 });
                 answers[q.id] = picked;
-                if (q.required && !Object.keys(picked).length && !missing) missing = q;
+                if (q.required && !Object.keys(picked).length && !problem) problem = `'${q.text}' 항목에 답해 주세요.`;
                 return;
             }
-            picked = [...document.querySelectorAll(`input[name="q_${CSS.escape(q.id)}"]:checked`)].map((i) => i.value);
+            const picked = [...document.querySelectorAll(`input[name="q_${CSS.escape(q.id)}"]:checked`)].map((i) => i.value);
             answers[q.id] = picked;
-            if (q.required && !picked.length && !missing) missing = q;
+            if (q.required && !picked.length && !problem) problem = `'${q.text}' 항목에 답해 주세요.`;
+            // 지원자 이름을 보여 주는 문항(부모돌봄 등)은 성함이 있어야 서로 확인할 수 있다
+            const nameQ = q.listFrom && survey.questions.find((x) => x.id === q.listFrom);
+            if (nameQ && picked.length) {
+                const el = document.querySelector(`input[name="q_${CSS.escape(nameQ.id)}"]`);
+                if (el && !el.value.trim() && !problem) problem = `'${q.text}'에 지원하시려면 어느 가정인지(아이 이름 또는 부모님 성함) 적어 주세요.`;
+            }
         });
         const errEl = document.getElementById('form-error');
-        if (missing) {
-            errEl.textContent = `'${missing.text}' 항목에 답해 주세요.`;
+        if (problem) {
+            errEl.textContent = problem;
             errEl.hidden = false;
             return;
         }
@@ -259,13 +423,22 @@ async function renderAdmin() {
         <p class="muted">${esc(user.email)}</p>
         <div class="actions" style="margin:0 0 16px">
             <button class="primary" id="new">새 조사 만들기</button>
-            <button id="new-meal">씨앗별 방학 급식·돌봄 조사 만들기</button>
             <button id="logout">로그아웃</button>
+        </div>
+        <div class="card">
+            <h2>템플릿으로 시작</h2>
+            <div class="actions" style="margin-top:0">
+                <button data-tpl="meal">방학 급식·돌봄 신청</button>
+                <button data-tpl="schedule">참석 가능 일정 조사</button>
+                <button data-tpl="opinion">의견·찬반 조사</button>
+            </div>
         </div>
         ${items || '<p class="muted">아직 만든 조사가 없습니다. 비슷한 조사를 반복한다면 기존 조사를 복제하면 편합니다.</p>'}`;
 
     document.getElementById('new').onclick = () => renderEditor(null);
-    document.getElementById('new-meal').onclick = () => renderEditor(null, mealPreset());
+    app.querySelectorAll('[data-tpl]').forEach((btn) => {
+        btn.onclick = () => renderEditor(null, TEMPLATES[btn.dataset.tpl]());
+    });
     document.getElementById('logout').onclick = async () => { await be.logout(); renderAdmin(); };
     app.querySelectorAll('[data-act]').forEach((btn) => {
         btn.onclick = async () => {
@@ -313,6 +486,7 @@ async function renderResultsPage(s) {
                 <button id="copy">링크 복사</button>
                 <button id="back">목록으로</button>
             </div>`;
+        bindCopy(app, s, list);
         document.getElementById('refresh').onclick = () => renderResultsPage(s);
         document.getElementById('copy').onclick = () => copyLink(s.id);
         document.getElementById('back').onclick = renderAdmin;
@@ -324,7 +498,10 @@ async function renderResultsPage(s) {
 
 /* ---------- 관리자: 만들기/수정 ---------- */
 function blankQuestion() {
-    return { id: 'q' + rid(), text: '', type: 'multi', required: false, optionsText: '', _opts: [] };
+    return {
+        id: 'q' + rid(), text: '', type: 'multi', required: false, optionsText: '', _opts: [],
+        gradesText: '1학년, 2학년, 3학년', listFrom: ''
+    };
 }
 
 function datesBetween(from, to, dows) {
@@ -338,32 +515,73 @@ function datesBetween(from, to, dows) {
     return out;
 }
 
+// 템플릿 문항 만들기
+function tq(text, type, required, labels, extra) {
+    return {
+        id: 'q' + rid(), text, type, required, optionsText: labels.join('\n'), _opts: [],
+        gradesText: '1학년, 2학년, 3학년', listFrom: '', ...extra
+    };
+}
+
+// 다음 주 월~금 (참석 일정 템플릿의 기본 날짜)
+function nextWeekLabels() {
+    const d = new Date();
+    d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
+    return Array.from({ length: 5 }, (_, i) => {
+        const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i);
+        return `${x.getMonth() + 1}월 ${x.getDate()}일(${DOW[x.getDay()]})`;
+    });
+}
+
 // 씨앗별 가을방학 급식·돌봄 조사 (만들기 화면에서 그대로 저장하면 된다)
 function mealPreset() {
-    const q = (text, type, required, labels) => ({
-        id: 'q' + rid(), text, type, required, optionsText: labels.join('\n'), _opts: []
-    });
+    const parentId = 'q' + rid();
+    const q = tq;
     return {
         title: '씨앗별 가을방학 급식·돌봄 신청',
         description: [
-            '씨앗별 학부모님께 드리는 익명 조사입니다. 이름은 받지 않습니다.',
+            '씨앗별 학부모님께 드리는 조사입니다.',
             '',
             '방학 기간: 10월 26일(월) ~ 10월 30일(금)',
-            '급식은 지난번처럼 유랑에서 진행합니다. 급식이 필요한 요일에 아이 수를 입력해 주세요. 집계 인원은 유랑에 전달됩니다.',
-            '10월 26일(월)은 교사 전체회의가 있어 부모돌봄이 필요합니다. 도와주실 수 있는 시간을 선택해 주세요.',
-            '부모돌봄에 지원해 주시는 분은 아래 의견란에 아이 이름이나 연락처를 남겨 주세요. 의견란은 관리자만 볼 수 있습니다.',
+            '급식은 지난번처럼 유랑에서 진행합니다. 급식이 필요한 아이의 이름과 학년을 적고, 필요한 요일을 선택해 주세요. 아이가 여러 명이면 "아이 추가"를 눌러 주세요. 집계 인원은 유랑에 전달됩니다.',
+            '10월 26일(월)은 교사 전체회의가 있어 부모돌봄이 필요합니다. 오전 또는 오후, 시간마다 한 분만 지원해 주시면 됩니다. 이미 지원하신 분은 결과 화면에 성함이 보이니 확인하고 선택해 주세요. 어느 가정인지 알 수 있게 아이 이름이나 부모님 성함(편한 쪽)을 적어 주시고, 일정상 전할 말씀(예: 12시에는 이동해야 합니다)은 의견란에 남겨 주세요.',
             '',
             '10월 21일(수)까지 답해 주세요.'
         ].join('\n'),
         showResults: true, allowComment: true,
         closesAt: new Date(2026, 9, 21, 23, 59).getTime(),
         questions: [
-            q('급식이 필요한 요일별 아이 수 (명)', 'count', false,
+            q('방학 중 급식이 필요한 아이와 요일', 'roster', false,
                 ['10월 26일(월)', '10월 27일(화)', '10월 28일(수)', '10월 29일(목)', '10월 30일(금)']),
-            q('10월 26일(월) 부모돌봄 — 도와주실 수 있는 시간', 'multi', false, ['오전', '오후'])
+            q('돌봄 지원 가정 (아이 이름 또는 부모님 성함, 자유롭게 적어 주세요)', 'text', false, [], { id: parentId }),
+            q('10월 26일(월) 부모돌봄 — 도와주실 수 있는 시간', 'multi', false, ['오전', '오후'], { listFrom: parentId })
         ]
     };
 }
+
+function schedulePreset() {
+    return {
+        title: '참석 가능 일정 조사',
+        description: '가능한 날짜를 모두 선택해 주세요. 이름은 받지 않고, 날짜별 인원만 집계합니다.',
+        showResults: true, allowComment: true, closesAt: null,
+        questions: [tq('참석 가능한 날짜를 모두 선택해 주세요', 'multi', true, nextWeekLabels())]
+    };
+}
+
+function opinionPreset() {
+    return {
+        title: '의견 조사',
+        description: '아래 안건에 대한 의견을 골라 주세요. 이름은 받지 않습니다.',
+        showResults: false, allowComment: true, closesAt: null,
+        questions: [tq('안건에 대한 의견', 'single', true, ['찬성', '반대', '잘 모르겠음'])]
+    };
+}
+
+const TEMPLATES = {
+    meal: mealPreset,
+    schedule: schedulePreset,
+    opinion: opinionPreset
+};
 
 function renderEditor(existing, preset) {
     document.title = existing ? '조사 수정' : '새 조사';
@@ -375,7 +593,8 @@ function renderEditor(existing, preset) {
             allowComment: existing.allowComment,
             closesAt: existing.closesAt,
             questions: existing.questions.map((q) => ({
-                ...q, optionsText: q.options.map((o) => o.label).join('\n'), _opts: q.options
+                ...q, optionsText: q.options.map((o) => o.label).join('\n'), _opts: q.options,
+                gradesText: (q.grades || []).join(', '), listFrom: q.listFrom || ''
             }))
         }
         : preset || {
@@ -384,7 +603,10 @@ function renderEditor(existing, preset) {
         };
 
     const draw = () => {
-        const qs = draft.questions.map((q, i) => `
+        const qs = draft.questions.map((q, i) => {
+            const hasOpts = q.type !== 'text';
+            const textQs = draft.questions.filter((x) => x.type === 'text');
+            return `
             <div class="q-edit" data-i="${i}">
                 <label class="field"><span>문항 ${i + 1}</span>
                     <input type="text" data-f="text" value="${esc(q.text)}" maxlength="120" placeholder="예: 참석 가능한 날짜를 모두 선택해 주세요"></label>
@@ -393,10 +615,13 @@ function renderEditor(existing, preset) {
                         <option value="multi" ${q.type === 'multi' ? 'selected' : ''}>여러 개 선택</option>
                         <option value="single" ${q.type === 'single' ? 'selected' : ''}>하나만 선택</option>
                         <option value="count" ${q.type === 'count' ? 'selected' : ''}>항목별 인원수 입력</option>
+                        <option value="roster" ${q.type === 'roster' ? 'selected' : ''}>아이 이름 + 요일 선택(명단)</option>
+                        <option value="text" ${q.type === 'text' ? 'selected' : ''}>짧은 글(이름 등)</option>
                     </select>
                     <label class="check"><input type="checkbox" data-f="required" ${q.required ? 'checked' : ''}> 필수 응답</label>
                 </div>
-                <label class="field"><span>선택지 (한 줄에 하나씩)</span>
+                ${hasOpts ? `
+                <label class="field"><span>${q.type === 'roster' ? '날짜·요일 (한 줄에 하나씩)' : '선택지 (한 줄에 하나씩)'}</span>
                     <textarea data-f="optionsText" placeholder="10월 26일(월)&#10;10월 27일(화)">${esc(q.optionsText)}</textarea></label>
                 <details class="helper"><summary>날짜·시간 선택지 자동 만들기</summary>
                     <div class="row"><label class="field"><span>시작일</span><input type="date" data-h="from"></label>
@@ -406,10 +631,17 @@ function renderEditor(existing, preset) {
                         <input type="text" data-h="times" placeholder="예: 10시, 12시, 14시"></label>
                     <button type="button" class="small" data-h="gen">선택지에 추가</button>
                 </details>
+                ` : ''}
+                ${q.type === 'roster' ? `<label class="field"><span>학년 목록 (쉼표로 구분, 비우면 학년 칸 없음)</span>
+                    <input type="text" data-f="gradesText" value="${esc(q.gradesText)}" placeholder="1학년, 2학년, 3학년"></label>` : ''}
+                ${q.type === 'multi' && textQs.length ? `<label class="field"><span>선택한 사람의 이름 표시 (선택)</span>
+                    <select data-f="listFrom"><option value="">표시 안 함</option>${textQs.map((x) =>
+                        `<option value="${esc(x.id)}" ${q.listFrom === x.id ? 'selected' : ''}>${esc(x.text || '(제목 없는 문항)')}</option>`).join('')}</select></label>` : ''}
                 <div class="actions" style="margin-top:0">
                     <button type="button" class="small danger" data-rm ${draft.questions.length === 1 ? 'disabled' : ''}>문항 삭제</button>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
 
         app.innerHTML = `
             <p class="eyebrow">${existing ? '조사 수정' : '새 조사'}</p>
@@ -438,14 +670,21 @@ function renderEditor(existing, preset) {
                 q.text = box.querySelector('[data-f=text]').value;
                 q.type = box.querySelector('[data-f=type]').value;
                 q.required = box.querySelector('[data-f=required]').checked;
-                q.optionsText = box.querySelector('[data-f=optionsText]').value;
+                const opt = box.querySelector('[data-f=optionsText]');
+                if (opt) q.optionsText = opt.value;
+                const gr = box.querySelector('[data-f=gradesText]');
+                if (gr) q.gradesText = gr.value;
+                const lf = box.querySelector('[data-f=listFrom]');
+                if (lf) q.listFrom = lf.value;
             });
         };
 
         app.querySelectorAll('.q-edit').forEach((box) => {
             const i = Number(box.dataset.i);
             box.querySelector('[data-rm]').onclick = () => { sync(); draft.questions.splice(i, 1); draw(); };
-            box.querySelector('[data-h=gen]').onclick = () => {
+            box.querySelector('[data-f=type]').onchange = () => { sync(); draw(); };
+            const genBtn = box.querySelector('[data-h=gen]');
+            if (genBtn) genBtn.onclick = () => {
                 const from = box.querySelector('[data-h=from]').value;
                 const to = box.querySelector('[data-h=to]').value || from;
                 if (!from) { toast('시작일을 선택해 주세요.'); return; }
@@ -474,13 +713,21 @@ function renderEditor(existing, preset) {
             for (const [n, q] of draft.questions.entries()) {
                 const labels = [...new Set(q.optionsText.split('\n').map((x) => x.trim()).filter(Boolean))];
                 if (!q.text.trim()) return fail(`문항 ${n + 1}의 질문을 입력해 주세요.`);
-                if (labels.length < 2) return fail(`문항 ${n + 1}의 선택지는 2개 이상 필요합니다.`);
+                const minOpts = { text: 0, roster: 1 }[q.type] ?? 2;
+                if (labels.length < minOpts) return fail(`문항 ${n + 1}의 ${q.type === 'roster' ? '날짜·요일은 1개' : '선택지는 2개'} 이상 필요합니다.`);
                 // 수정 시 기존 선택지 id를 유지해 이미 쌓인 응답이 어긋나지 않게 한다
-                const options = labels.map((label) => {
+                const options = q.type === 'text' ? [] : labels.map((label) => {
                     const prev = (q._opts || []).find((o) => o.label === label);
                     return { id: prev ? prev.id : 'o' + rid(), label };
                 });
-                questions.push({ id: q.id, text: q.text.trim(), type: q.type, required: q.required, options });
+                const item = { id: q.id, text: q.text.trim(), type: q.type, required: q.required, options };
+                if (q.type === 'roster') {
+                    item.grades = [...new Set((q.gradesText || '').split(',').map((x) => x.trim()).filter(Boolean))];
+                }
+                if (q.type === 'multi' && q.listFrom && draft.questions.some((x) => x.id === q.listFrom && x.type === 'text')) {
+                    item.listFrom = q.listFrom;
+                }
+                questions.push(item);
             }
             const survey = {
                 title: draft.title.trim(), description: draft.description.trim(), questions,
