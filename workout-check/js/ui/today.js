@@ -16,7 +16,7 @@ export function mountToday(root, store) {
   root.innerHTML = `
     <header class="head">
       <p class="eyebrow" id="weekLabel"></p>
-      <h1 id="dateLabel"></h1>
+      <h1 id="dateLabel" tabindex="-1"></h1>
       <div class="prog">
         <div class="segs" id="segs"></div>
         <span class="progtext" id="progText"></span>

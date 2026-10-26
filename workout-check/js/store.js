@@ -207,9 +207,15 @@ export function createStore(adapter) {
       emit();
       try {
         if (replaceConfig || !state.configSaved) await persistConfig();
-        for (let i = 0; i < dates.length; i++) {
-          await adapter.saveDay(dates[i], serializeDay(dates[i], days[dates[i]]));
-          if (i % 20 === 19) setStatus(`가져오는 중… ${i + 1}/${dates.length}`);
+        if (adapter.saveDays) {
+          const docs = {};
+          for (const d of dates) docs[d] = serializeDay(d, days[d]);
+          await adapter.saveDays(docs);
+        } else {
+          for (let i = 0; i < dates.length; i++) {
+            await adapter.saveDay(dates[i], serializeDay(dates[i], days[dates[i]]));
+            if (i % 20 === 19) setStatus(`가져오는 중… ${i + 1}/${dates.length}`);
+          }
         }
         setStatus(`${dates.length}일치 기록을 가져왔습니다`);
       } catch (e) {
