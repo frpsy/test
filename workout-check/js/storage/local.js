@@ -36,7 +36,15 @@ export function createLocalAdapter() {
 
   function write() {
     if (!available) return;
-    localStorage.setItem(KEY, JSON.stringify(data));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+    } catch (err) {
+      // 브라우저마다 이름·번호가 달라 store가 알아보는 code로 바꿉니다.
+      if (err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22)) {
+        throw Object.assign(new Error('저장 공간 부족'), { code: 'quota_exceeded' });
+      }
+      throw err;
+    }
   }
 
   return {
@@ -75,6 +83,12 @@ export function createLocalAdapter() {
 
     async saveDay(date, doc) {
       data.days[date] = doc;
+      write();
+    },
+
+    // 백업 가져오기: 날마다 전체를 다시 쓰지 않고 한 번에 씁니다.
+    async saveDays(docs) {
+      Object.assign(data.days, docs);
       write();
     },
   };
