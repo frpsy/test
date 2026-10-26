@@ -42,7 +42,8 @@ export function createLocalAdapter() {
   return {
     kind: 'local',
     synced: false,
-    canDownload: true,
+    // 아티팩트 뷰어는 파일 저장 링크를 막으므로 단독 실행일 때만
+    canDownload: typeof document !== 'undefined' && document.documentElement.classList.contains('standalone'),
     label: available
       ? '이 브라우저에만 저장됩니다. 다른 기기로 옮기려면 백업을 쓰세요.'
       : '이 브라우저는 저장을 막고 있어 새로고침하면 기록이 사라집니다.',
