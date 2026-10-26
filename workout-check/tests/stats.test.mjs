@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bestStreak, completeDayCount, currentStreak, totals } from '../js/stats.js';
+import { bestStreak, bests, completeDayCount, currentStreak, totals } from '../js/stats.js';
 
 const ids = ['a', 'b'];
 const full = { entries: { a: { done: true, count: 10 }, b: { done: true, target: 5 } } };
@@ -26,4 +26,9 @@ test('누적: count 없으면 target 사용', () => {
 
 test('운동이 하나도 없으면 완료로 세지 않음', () => {
   assert.equal(completeDayCount({ d: full }, []), 0);
+});
+
+test('하루 최고: 완료한 날 중 가장 많은 값', () => {
+  const days = { d1: full, d2: { entries: { a: { done: true, count: 14 }, b: { done: false, count: 99 } } } };
+  assert.deepEqual(bests(days, [{ id: 'a' }, { id: 'b' }]), { a: 14, b: 5 });
 });

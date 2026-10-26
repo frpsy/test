@@ -2,7 +2,7 @@
 
 import { UNITS } from '../config.js';
 import { addDays, labelMD, mondayOf, parse, shortMD } from '../dates.js';
-import { bestStreak, completeDayCount, currentStreak, doneCount, isDone, totals } from '../stats.js';
+import { bestStreak, bests, completeDayCount, currentStreak, doneCount, isDone, totals } from '../stats.js';
 import { $, esc, num } from './dom.js';
 
 const WEEKS = 5;
@@ -35,8 +35,11 @@ export function mountHistory(root, store) {
     const b = ev.target.closest('button.cell');
     if (!b || b.disabled) return;
     store.actions.select(b.dataset.date);
-    const again = $(`[data-date="${b.dataset.date}"]`, root);
-    if (again) again.focus();
+    // 고칠 체크 행은 맨 위에 있어 달력에서는 보이지 않으므로 그쪽으로 옮깁니다.
+    const top = document.getElementById('today');
+    const title = document.getElementById('dateLabel');
+    if (top) top.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    if (title) title.focus({ preventScroll: true });
   });
 
   return function render(state) {
@@ -86,8 +89,13 @@ export function mountHistory(root, store) {
 
     /* 종목별 합계 */
     const sums = totals(days, exs);
+    const tops = bests(days, exs);
     $('#totals', root).innerHTML = exs
-      .map((e) => `<div><dt>${esc(e.name)}</dt><dd>${num(sums[e.id])}<small>${esc(UNITS[e.unit].label)}</small></dd></div>`)
+      .map((e) => {
+        const u = esc(UNITS[e.unit].label);
+        const best = tops[e.id] ? `<dd class="best">하루 최고 ${num(tops[e.id])}${u}</dd>` : '';
+        return `<div><dt>${esc(e.name)}</dt><dd>${num(sums[e.id])}<small>${u}</small></dd>${best}</div>`;
+      })
       .join('');
   };
 }

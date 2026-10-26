@@ -42,6 +42,8 @@ export function completeDayCount(days, ids) {
   return Object.keys(days).filter((d) => isComplete(days[d], ids)).length;
 }
 
+const amountOf = (e) => (Number.isFinite(e.count) ? e.count : e.target || 0);
+
 /** 종목별 누적 개수 (완료한 날만) */
 export function totals(days, exercises) {
   const out = {};
@@ -49,7 +51,20 @@ export function totals(days, exercises) {
   for (const day of Object.values(days)) {
     for (const ex of exercises) {
       const e = entryOf(day, ex.id);
-      if (e && e.done) out[ex.id] += Number.isFinite(e.count) ? e.count : e.target || 0;
+      if (e && e.done) out[ex.id] += amountOf(e);
+    }
+  }
+  return out;
+}
+
+/** 종목별 하루 최고 개수 (완료한 날만) */
+export function bests(days, exercises) {
+  const out = {};
+  for (const ex of exercises) out[ex.id] = 0;
+  for (const day of Object.values(days)) {
+    for (const ex of exercises) {
+      const e = entryOf(day, ex.id);
+      if (e && e.done) out[ex.id] = Math.max(out[ex.id], amountOf(e));
     }
   }
   return out;
